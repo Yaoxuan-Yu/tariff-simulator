@@ -1,0 +1,6 @@
+*.log
+*.class
+/.idea
+/.vscode
+/.mvn
+**/application-*.properties
