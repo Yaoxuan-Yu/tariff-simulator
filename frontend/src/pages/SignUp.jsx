@@ -1,16 +1,19 @@
+
 import React, { useState } from 'react';
 import supabase from "../helper/supabaseClient";
-import { Link, useNavigate  } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import '../App.css';
 
 function SignUp() {
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setMessage("");
+    setIsError(false);
 
     const { data, error } = await supabase.auth.signUp({
       email: email,
@@ -19,11 +22,13 @@ function SignUp() {
 
     if (error) {
       setMessage(error.message);
+      setIsError(true);
       return;
     }
 
     if (data) {
       setMessage("Please click the link in your email to verify your email address!");
+      setIsError(false);
     }
 
     setEmail("");
@@ -31,31 +36,57 @@ function SignUp() {
   };
 
   return (
-    <div>
-      <h2>Register</h2>
-      <br></br>
-      {message && <span>{message}</span>}
-      <form onSubmit={handleSubmit}>
-        <input
-          onChange={(e) => setEmail(e.target.value)}
-          value={email}
-          type="email"
-          placeholder="Email"
-          required
-        />
-        <input
-          onChange={(e) => setPassword(e.target.value)}
-          value={password}
-          type="password"
-          placeholder="Password"
-          required
-        />
-        <button type="submit">Create Account</button>
-      </form>
-      <span>Already have an account?</span>
-      <Link to="/login">Log in.</Link>
+    <div className="signup-container">
+      <div className="signup-card">
+        <div className="signup-header">
+          <h2 className="signup-title">Create Account</h2>
+        </div>
+        
+        {message && (
+          <div className={`message ${isError ? 'error' : 'success'}`}>
+            {message}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="signup-form">
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">Email</label>
+            <input
+              id="email"
+              className="form-input"
+              onChange={(e) => setEmail(e.target.value)}
+              value={email}
+              type="email"
+              placeholder="Enter your email"
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label" htmlFor="password">Password</label>
+            <input
+              id="password"
+              className="form-input"
+              onChange={(e) => setPassword(e.target.value)}
+              value={password}
+              type="password"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+          
+          <button type="submit" className="submit-button">
+            Create Account
+          </button>
+        </form>
+        
+        <div className="login-link-container">
+          <span className="login-text">Already have an account?</span>
+          <Link to="/login" className="login-link">Sign in</Link>
+        </div>
+      </div>
     </div>
   );
 }
 
-export default SignUp
+export default SignUp;

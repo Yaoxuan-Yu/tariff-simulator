@@ -31,31 +31,57 @@ function Login() {
   };
 
   return (
-    <div>
-      <h2>Login</h2>
-      <br></br>
-      {message && <span>{message}</span>}
-      <form onSubmit={handleSubmit}>
-        <input
-          onChange={(e) => setEmail(e.target.value)}
-          value={email}
-          type="email"
-          placeholder="Email"
-          required
-        />
-        <input
-          onChange={(e) => setPassword(e.target.value)}
-          value={password}
-          type="password"
-          placeholder="Password"
-          required
-        />
-        <button type="submit">Log in</button>
-      </form>
-      <span>Don't have an account?</span>
-      <Link to="/signup">Sign Up</Link>
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h2 className="login-title">Login</h2>
+        </div>
+        
+        {message && (
+          <div className="message error">
+            {message}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">Email</label>
+            <input
+              id="email"
+              className="form-input"
+              onChange={(e) => setEmail(e.target.value)}
+              value={email}
+              type="email"
+              placeholder="Enter your email"
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label" htmlFor="password">Password</label>
+            <input
+              id="password"
+              className="form-input"
+              onChange={(e) => setPassword(e.target.value)}
+              value={password}
+              type="password"
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+          
+          <button type="submit" className="submit-button">
+            Sign In
+          </button>
+        </form>
+        
+        <div className="signup-link-container">
+          <span className="signup-text">Don't have an account?</span>
+          <Link to="/signup" className="signup-link">Sign up</Link>
+        </div>
+      </div>
     </div>
   );
 }
 
-export default Login
+export default Login;
