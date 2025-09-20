@@ -233,9 +233,62 @@
   transition: color 0.2s ease;
 }
 
-.signup-link:hover {
-  color: #1d4ed8;
-  text-decoration: underline;
+.google-signin-button {
+  width: 100%;
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.google-signin-button:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.google-signin-button:active {
+  transform: translateY(0);
+}
+
+.google-signin-button img {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0;
+  color: #64748b;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.divider span {
+  padding: 0 1rem;
+  background: white;
 }
 
 /* Landing Page Styles */

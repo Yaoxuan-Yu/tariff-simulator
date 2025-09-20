@@ -30,19 +30,43 @@ function Login() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setMessage("");
+    const { error } = await supabase.auth.signInWithOAuth({ 
+      provider: 'google', 
+      options: {
+        redirectTo: 'http://localhost:5173/home'
+      }
+    });
+    redirectTo: 'http://localhost:5173/home' // hardcoded for now 
+    if (error) {
+      setMessage(error.message);
+    }
+  };
+
   return (
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
           <h2 className="login-title">Login</h2>
+            <p className="signup-subtitle">Welcome back!</p>
         </div>
-        
+
         {message && (
           <div className="message error">
             {message}
           </div>
         )}
-        
+
+        <button type="button" className="google-signin-button" onClick={handleGoogleSignIn} style={{marginBottom: '1rem', width: '100%'}}>
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style={{width: '1.2em', verticalAlign: 'middle', marginRight: '0.5em'}} />
+          Sign in with Google
+        </button>
+
+        <div className="divider">
+          <span>or</span>
+        </div>
+
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
             <label className="form-label" htmlFor="email">Email</label>
@@ -56,7 +80,7 @@ function Login() {
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label className="form-label" htmlFor="password">Password</label>
             <input
@@ -69,12 +93,12 @@ function Login() {
               required
             />
           </div>
-          
+
           <button type="submit" className="submit-button">
             Sign In
           </button>
         </form>
-        
+
         <div className="signup-link-container">
           <span className="signup-text">Don't have an account?</span>
           <Link to="/signup" className="signup-link">Sign up</Link>
