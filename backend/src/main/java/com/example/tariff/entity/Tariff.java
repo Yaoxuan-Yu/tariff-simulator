@@ -3,22 +3,23 @@ package com.example.tariff.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "tariffs")
+@Table(name = "\"Tariff Details (Test)\"")
 public class Tariff {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    @Column(name = "\"Country\"")
     private String country;
+
+    @Column(name = "\"Partner\"")
     private String partner;
+    
+    @Column(name = "\"AHS (weighted)\"")
     private Double ahsWeighted;
+    
+    @Column(name = "\"MFN (weighted)\"")
     private Double mfnWeighted;
 
     // Getters and setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
     public String getCountry() { return country; }
     public void setCountry(String country) { this.country = country; }
 
