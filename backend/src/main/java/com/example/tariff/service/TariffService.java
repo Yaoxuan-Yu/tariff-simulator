@@ -3,6 +3,7 @@ package com.example.tariff.service;
 import com.example.tariff.dto.TariffResponse;
 import com.example.tariff.entity.Product;
 import com.example.tariff.entity.Tariff;
+import com.example.tariff.exception.NotFoundException;
 import com.example.tariff.repository.ProductRepository;
 import com.example.tariff.repository.TariffRepository;
 import org.springframework.stereotype.Service;
@@ -23,12 +24,12 @@ public class TariffService {
     public TariffResponse calculate(String importCountry, String exportCountry, String hsCode, String brand) {
         // Find tariff information
         Tariff tariff = tariffRepository.findByCountryAndPartner(importCountry, exportCountry)
-                .orElseThrow(() -> new RuntimeException("Tariff not found for countries: " + importCountry + " -> " + exportCountry));
+                .orElseThrow(() -> new NotFoundException("Tariff not found for countries: " + importCountry + " -> " + exportCountry));
 
         // Find product by HS code and brand
         List<Product> products = productRepository.findByHsCodeAndBrand(hsCode, brand);
         if (products.isEmpty()) {
-            throw new RuntimeException("Product not found for HS Code: " + hsCode + " and Brand: " + brand);
+            throw new NotFoundException("Product not found for HS Code: " + hsCode + " and Brand: " + brand);
         }
 
         // Use numeric product cost directly

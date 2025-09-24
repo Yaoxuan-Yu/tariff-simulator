@@ -2,11 +2,12 @@ package com.example.tariff.controller;
 
 import com.example.tariff.dto.TariffResponse;
 import com.example.tariff.service.TariffService;
+import com.example.tariff.service.CsvExportService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -14,26 +15,22 @@ import java.util.Map;
 public class TariffController {
 
     private final TariffService tariffService;
+    private final CsvExportService csvExportService;
 
-    public TariffController(TariffService tariffService) {
+    public TariffController(TariffService tariffService, CsvExportService csvExportService) {
         this.tariffService = tariffService;
+        this.csvExportService = csvExportService;
     }
 
     @GetMapping("/tariff")
-    public ResponseEntity<?> calculateTariff(
+    public ResponseEntity<TariffResponse> calculateTariff(
             @RequestParam String importCountry,
             @RequestParam String exportCountry,
             @RequestParam String hsCode,
             @RequestParam String brand
     ) {
-        try {
-            TariffResponse response = tariffService.calculate(importCountry, exportCountry, hsCode, brand);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", e.getMessage()
-            ));
-        }
+        TariffResponse response = tariffService.calculate(importCountry, exportCountry, hsCode, brand);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/countries")
@@ -54,5 +51,17 @@ public class TariffController {
     @GetMapping("/brands")
     public ResponseEntity<List<String>> getBrandsByHsCode(@RequestParam String hsCode) {
         return ResponseEntity.ok(tariffService.getBrandsByHsCode(hsCode));
+    }
+
+    @GetMapping("/export")
+    public void exportTariffAsCSV(
+            @RequestParam String importCountry,
+            @RequestParam String exportCountry,
+            @RequestParam String hsCode,
+            @RequestParam String brand,
+            HttpServletResponse response
+    ) {
+        TariffResponse tariffResponse = tariffService.calculate(importCountry, exportCountry, hsCode, brand);
+        csvExportService.exportSingleTariffAsCSV(tariffResponse, response);
     }
 }
