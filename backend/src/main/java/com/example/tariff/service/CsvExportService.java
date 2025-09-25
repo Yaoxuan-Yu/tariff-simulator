@@ -22,19 +22,16 @@ public class CsvExportService {
             PrintWriter writer = response.getWriter();
             
 
-            writer.println("Import Country,Export Country,HS Code,Brand,Product Cost,AHS Rate,AHS Tariff Amount,MFN Rate,MFN Tariff Amount");
+            writer.println("Import Country,Export Country,HS Code,Brand,AHS Rate,MFN Rate");
 
 
-            writer.printf("%s,%s,%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f%n",
+            writer.printf("%s,%s,%s,%s,%.2f,%.2f%n",
                     tariffResponse.getImportCountry(),
                     tariffResponse.getExportCountry(),
                     tariffResponse.getHsCode(),
                     tariffResponse.getBrand(),
-                    tariffResponse.getProductCost(),
                     tariffResponse.getAhsRate(),
-                    tariffResponse.getAhsTariffAmount(),
-                    tariffResponse.getMfnRate(),
-                    tariffResponse.getMfnTariffAmount());
+                    tariffResponse.getMfnRate());
 
             writer.flush();
             writer.close();

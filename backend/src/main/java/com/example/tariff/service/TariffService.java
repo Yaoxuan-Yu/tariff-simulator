@@ -22,39 +22,28 @@ public class TariffService {
     }
 
     public TariffResponse calculate(String importCountry, String exportCountry, String hsCode, String brand) {
-        // Find tariff information
+        
         Tariff tariff = tariffRepository.findByCountryAndPartner(importCountry, exportCountry)
                 .orElseThrow(() -> new NotFoundException("Tariff not found for countries: " + importCountry + " -> " + exportCountry));
 
-        // Find product by HS code and brand
+        // Find product by HS code and brand (for validation)
         List<Product> products = productRepository.findByHsCodeAndBrand(hsCode, brand);
         if (products.isEmpty()) {
             throw new NotFoundException("Product not found for HS Code: " + hsCode + " and Brand: " + brand);
         }
 
-        // Use numeric product cost directly
-        double productCost = products.get(0).getProductCost() == null ? 0.0 : products.get(0).getProductCost();
-        
-        // Calculate tariff amounts
-        double ahsTariffAmount = productCost * (tariff.getAhsWeighted() / 100);
-        double mfnTariffAmount = productCost * (tariff.getMfnWeighted() / 100);
+        // Return only tariff rates without calculations
 
         return new TariffResponse(
                 importCountry,
                 exportCountry,
                 hsCode,
                 brand,
-                productCost,
                 tariff.getAhsWeighted(),
-                ahsTariffAmount,
-                tariff.getMfnWeighted(),
-                mfnTariffAmount
+                tariff.getMfnWeighted()
         );
     }
 
-    // Removed parsing method since we now use numeric column
-
-    // Additional methods for frontend dropdown population
     public List<String> getAllCountries() {
         return tariffRepository.findDistinctCountries();
     }
