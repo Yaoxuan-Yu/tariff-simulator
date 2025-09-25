@@ -22,6 +22,30 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage()));
     }
 
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<Map<String, String>> handleValidationException(ValidationException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ExportException.class)
+    public ResponseEntity<Map<String, String>> handleExportException(ExportException ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Export failed: " + ex.getMessage()));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<Map<String, String>> handleDataAccessException(DataAccessException ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Database operation failed: " + ex.getMessage()));
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<Map<String, String>> handleServiceUnavailableException(ServiceUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", "Service temporarily unavailable: " + ex.getMessage()));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
