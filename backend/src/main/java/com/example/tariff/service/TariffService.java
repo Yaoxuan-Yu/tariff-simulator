@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 public class TariffService {
     private final TariffRepository tariffRepository;
     private final ProductRepository productRepository;
+    // In-memory storage for user-defined tariffs (per-session). Replace with persistence as needed.
+    private final List<TariffDefinitionsResponse.TariffDefinitionDto> userDefinedTariffs = new ArrayList<>();
     public TariffService(TariffRepository tariffRepository, ProductRepository productRepository) {
         this.tariffRepository = tariffRepository;
         this.productRepository = productRepository;
@@ -105,14 +107,15 @@ public class TariffService {
     public TariffDefinitionsResponse getTariffDefinitions() {
         try {
 
-            List<Product> products = productRepository.findAll();
+            // Use distinct product names to avoid duplicating rows per brand in definitions
+            List<String> products = productRepository.findDistinctProducts();
             List<Tariff> tariffs = tariffRepository.findAll();
             
             List<TariffDefinitionsResponse.TariffDefinitionDto> definitions = new ArrayList<>();
             int id = 1;
             
 
-            for (Product product : products) {
+            for (String productName : products) {
                 for (Tariff tariff : tariffs) {
 
                     boolean hasFTA = hasFTA(tariff.getCountry(), tariff.getPartner());
@@ -122,7 +125,7 @@ public class TariffService {
                     if (hasFTA || tariff.getAhsWeighted().equals(tariff.getMfnWeighted())) {
                         definitions.add(new TariffDefinitionsResponse.TariffDefinitionDto(
                             String.valueOf(id++),
-                            product.getName(),
+                            productName,
                             tariff.getPartner(),
                             tariff.getCountry(),
                             type,
@@ -137,6 +140,35 @@ public class TariffService {
             return new TariffDefinitionsResponse(true, definitions);
         } catch (Exception e) {
             return new TariffDefinitionsResponse(false, "Failed to retrieve tariff definitions: " + e.getMessage());
+        }
+    }
+
+    // Global (database-derived) tariff definitions
+    public TariffDefinitionsResponse getGlobalTariffDefinitions() {
+        return getTariffDefinitions();
+    }
+
+    // User-defined tariff definitions (in-memory)
+    public TariffDefinitionsResponse getUserTariffDefinitions() {
+        return new TariffDefinitionsResponse(true, new ArrayList<>(userDefinedTariffs));
+    }
+
+    public TariffDefinitionsResponse addUserTariffDefinition(TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        try {
+            // Basic validation
+            if (dto.getProduct() == null || dto.getProduct().isEmpty() ||
+                dto.getExportingFrom() == null || dto.getExportingFrom().isEmpty() ||
+                dto.getImportingTo() == null || dto.getImportingTo().isEmpty() ||
+                dto.getType() == null || dto.getType().isEmpty()) {
+                return new TariffDefinitionsResponse(false, "Missing required fields for user-defined tariff");
+            }
+            if (dto.getId() == null || dto.getId().isEmpty()) {
+                dto.setId("user-" + System.currentTimeMillis());
+            }
+            userDefinedTariffs.add(dto);
+            return new TariffDefinitionsResponse(true, List.of(dto));
+        } catch (Exception e) {
+            return new TariffDefinitionsResponse(false, "Failed to add user-defined tariff: " + e.getMessage());
         }
     }
 }
