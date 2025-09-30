@@ -156,7 +156,7 @@ export function TariffDefinitionsTable() {
       const matchesExporting = !filters.exportingFrom || tariff.exportingFrom === filters.exportingFrom
       const matchesImporting = !filters.importingTo || tariff.importingTo === filters.importingTo
 
-      return matchesProduct && matchesExporting && matchesImporting
+      return matchesProduct && matchesExporting && matchesImporting && tariff.rate > 0
     })
   }
 
@@ -211,8 +211,14 @@ export function TariffDefinitionsTable() {
                     <td className="py-3 px-4 text-muted-foreground">{tariff.importingTo}</td>
                     <td className="py-3 px-4">
                       <Badge
-                        variant={tariff.type === "AHS" ? "default" : "secondary"}
-                        className={tariff.type === "AHS" ? "bg-accent/20 text-accent-foreground" : ""}
+                        variant="secondary"
+                        className={
+                          tariff.type?.toLowerCase() === "ahs"
+                            ? "bg-primary text-primary-foreground"
+                            : tariff.type?.toLowerCase() === "mfn"
+                            ? "bg-accent text-accent-foreground"
+                            : ""
+                        }
                       >
                         {tariff.type}
                       </Badge>
@@ -389,7 +395,7 @@ export function TariffDefinitionsTable() {
             <div className="space-y-2">
               <Label>Product</Label>
               <Select value={filters.product || "all"} onValueChange={(value) => handleFilterChange("product", value)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="All products" />
                 </SelectTrigger>
                 <SelectContent>
@@ -408,7 +414,7 @@ export function TariffDefinitionsTable() {
                 value={filters.exportingFrom || "all"}
                 onValueChange={(value) => handleFilterChange("exportingFrom", value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="All countries" />
                 </SelectTrigger>
                 <SelectContent>
@@ -427,7 +433,7 @@ export function TariffDefinitionsTable() {
                 value={filters.importingTo || "all"}
                 onValueChange={(value) => handleFilterChange("importingTo", value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="All countries" />
                 </SelectTrigger>
                 <SelectContent>

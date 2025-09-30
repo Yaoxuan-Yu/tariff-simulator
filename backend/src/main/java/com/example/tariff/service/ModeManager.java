@@ -22,12 +22,9 @@ public class ModeManager {
         this.currentMode = globalMode;
     }
 
-    public void useSimulatorMode(double ahsRate, double mfnRate) {
-        simulatorMode.setRates(ahsRate, mfnRate);
-        this.currentMode = simulatorMode;
-    }
+    public void useSimulatorMode() { this.currentMode = simulatorMode; }
 
-    public TariffResponse calculate(String importCountry, String exportCountry, String hsCode, String brand) {
-        return currentMode.calculate(importCountry, exportCountry, hsCode, brand);
+    public TariffResponse calculate(String importCountry, String exportCountry, String product, String brand, double quantity, String customCost) {
+        return currentMode.calculate(importCountry, exportCountry, product, brand, quantity, customCost);
     }
 }

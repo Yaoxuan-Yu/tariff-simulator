@@ -139,7 +139,7 @@ export function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
 
             <Button 
               type="submit" 
-              className="w-full bg-purple-600 hover:bg-purple-700" 
+              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" 
               disabled={isLoading}
             >
               {isLoading ? "Signing in..." : "Sign In"}
@@ -150,7 +150,7 @@ export function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
             <span>Don't have an account? </span>
             <button 
               onClick={onSwitchToSignup}
-              className="text-purple-600 hover:text-purple-700 font-medium"
+              className="text-accent hover:text-accent/90 font-medium"
             >
               Sign up
             </button>

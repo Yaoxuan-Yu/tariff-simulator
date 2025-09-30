@@ -12,6 +12,7 @@ interface TariffCalculatorFormProps {
 export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculatorFormProps) {
   const [formData, setFormData] = useState({
     tariffSource: "global", // Added tariff source selection
+    userTariffId: "",
     product: "",
     brand: "",
     exportingFrom: "",
@@ -25,6 +26,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
   const [availableBrands, setAvailableBrands] = useState<any[]>([])
   const [products, setProducts] = useState<string[]>([])
   const [countries, setCountries] = useState<string[]>([])
+  const [userTariffs, setUserTariffs] = useState<any[]>([])
   // Load initial data from backend API
   React.useEffect(() => {
     const loadInitialData = async () => {
@@ -56,6 +58,10 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
           const response = await fetch(`http://localhost:8080/api/brands?product=${encodeURIComponent(value)}`)
           const brandsData = await response.json()
           setAvailableBrands(brandsData)
+          // If there's only one brand for the selected product, auto-select it
+          if (Array.isArray(brandsData) && brandsData.length === 1 && brandsData[0]?.brand) {
+            setFormData((prev) => ({ ...prev, brand: brandsData[0].brand }))
+          }
         } catch (error) {
           console.error('Error loading brands from backend:', error)
           setAvailableBrands([])
@@ -63,6 +69,24 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
       }
       loadBrands()
       setFormData((prev) => ({ ...prev, brand: "" })) // Reset brand selection
+    }
+    if (field === "tariffSource") {
+      if (value === "user") {
+        const loadUserTariffs = async () => {
+          try {
+            const res = await fetch('http://localhost:8080/api/tariff-definitions/user')
+            const data = await res.json()
+            if (data.success && data.data) {
+              setUserTariffs(data.data)
+            } else {
+              setUserTariffs([])
+            }
+          } catch (e) {
+            setUserTariffs([])
+          }
+        }
+        loadUserTariffs()
+      }
     }
   }
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +105,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
       setIsLoading(false)
       return
     }
+    // No explicit userTariffId needed; backend will choose matching user-defined definition
     if (Number.parseFloat(formData.quantity) <= 0) {
       setError("Quantity must be greater than 0")
       setIsLoading(false)
@@ -94,7 +119,8 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
         exportingFrom: formData.exportingFrom,
         importingTo: formData.importingTo,
         quantity: formData.quantity,
-        ...(formData.customCost && { customCost: formData.customCost })
+        ...(formData.customCost && { customCost: formData.customCost }),
+        ...(formData.tariffSource === "user" ? { mode: "user" } : {})
       })
       
       const response = await fetch(`http://localhost:8080/api/tariff?${params}`)
@@ -133,7 +159,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
           <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground">Tariff Source</label>
             <Select value={formData.tariffSource} onValueChange={(value) => handleInputChange("tariffSource", value)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full h-10">
                 <SelectValue placeholder="Select tariff source" />
               </SelectTrigger>
               <SelectContent>
@@ -143,15 +169,22 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
             </Select>
           </div>
 
+          {/* Removed separate user-defined tariff dropdown per user request */}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Product</label>
               <Select value={formData.product} onValueChange={(value) => handleInputChange("product", value)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="Select a product" />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((product) => (
+                  {(formData.tariffSource === "user"
+                    ? Array.from(new Set(
+                        userTariffs.map((t: any) => t.product)
+                      ))
+                    : products
+                  ).map((product: string) => (
                     <SelectItem key={product} value={product}>
                       {product}
                     </SelectItem>
@@ -166,7 +199,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 onValueChange={(value) => handleInputChange("brand", value)}
                 disabled={!formData.product}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="Select a brand" />
                 </SelectTrigger>
                 <SelectContent>
@@ -186,11 +219,18 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 value={formData.exportingFrom}
                 onValueChange={(value) => handleInputChange("exportingFrom", value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {countries.map((country) => (
+                  {(formData.tariffSource === "user"
+                    ? Array.from(new Set(
+                        userTariffs
+                          .filter((t: any) => !formData.product || t.product === formData.product)
+                          .map((t: any) => t.exportingFrom)
+                      ))
+                    : countries
+                  ).map((country: string) => (
                     <SelectItem key={country} value={country}>
                       {country}
                     </SelectItem>
@@ -201,11 +241,22 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Importing To</label>
               <Select value={formData.importingTo} onValueChange={(value) => handleInputChange("importingTo", value)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {countries.map((country) => (
+                  {(formData.tariffSource === "user"
+                    ? Array.from(new Set(
+                        userTariffs
+                          .filter(
+                            (t: any) =>
+                              (!formData.product || t.product === formData.product) &&
+                              (!formData.exportingFrom || t.exportingFrom === formData.exportingFrom)
+                          )
+                          .map((t: any) => t.importingTo)
+                      ))
+                    : countries
+                  ).map((country: string) => (
                     <SelectItem key={country} value={country}>
                       {country}
                     </SelectItem>

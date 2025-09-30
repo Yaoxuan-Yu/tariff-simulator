@@ -64,7 +64,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
               <div>
                 <p className="text-muted-foreground">Product</p>
                 <p className="font-medium">{results.product}</p>
-                <p className="text-xs text-muted-foreground">{results.brand}</p>
+                <p className="text-xs text-muted-foreground">Brand: {results.brand}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Route</p>
@@ -75,9 +75,9 @@ export function ResultsTable({ results }: ResultsTableProps) {
               <div>
                 <p className="text-muted-foreground">Quantity</p>
                 <p className="font-medium">
-                  {results.quantity} {results.unit}
+                  {results.quantity} x {results.unit}
                 </p>
-                <p className="text-xs text-muted-foreground">Product Cost: ${results.productCost.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">Total Product Cost: ${results.productCost.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Cost</p>
@@ -104,8 +104,14 @@ export function ResultsTable({ results }: ResultsTableProps) {
                     <td className="py-3 px-4 text-foreground">{item.description}</td>
                     <td className="py-3 px-4">
                       <Badge
-                        variant={item.type === "Tariff" ? "default" : "secondary"}
-                        className={item.type === "Tariff" ? "bg-accent/20 text-accent-foreground" : ""}
+                        variant="secondary"
+                        className={
+                          item.type?.toLowerCase() === "tariff"
+                            ? "bg-accent text-accent-foreground"
+                            : item.type?.toLowerCase() === "ahs"
+                            ? "bg-primary text-primary-foreground"
+                            : ""
+                        }
                       >
                         {item.type}
                       </Badge>
