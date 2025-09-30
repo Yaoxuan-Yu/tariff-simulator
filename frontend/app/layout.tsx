@@ -7,7 +7,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Tariff Wise',
   description: 'Created with',
-  generator: '',
+  generator: ' ',
 }
 
 export default function RootLayout({

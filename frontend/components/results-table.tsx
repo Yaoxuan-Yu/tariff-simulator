@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Download } from "lucide-react"
-import { exportToCSV } from "@/lib/csv-export"
 import { useState } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -21,7 +20,9 @@ export function ResultsTable({ results }: ResultsTableProps) {
   const handleExportCSV = async () => {
     try {
       setExportError("")
-      await exportToCSV(results, "tariff-calculation-results")
+      // TODO: Replace with actual backend API call for CSV export
+      console.log("Export CSV requested for results:", results)
+      alert("CSV export functionality will be handled by the backend")
     } catch (error) {
       setExportError("Failed to export CSV. Please try again.")
     }

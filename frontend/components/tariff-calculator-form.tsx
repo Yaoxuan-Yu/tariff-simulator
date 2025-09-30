@@ -11,6 +11,7 @@ interface TariffCalculatorFormProps {
 }
 export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculatorFormProps) {
   const [formData, setFormData] = useState({
+    tariffSource: "global", // Added tariff source selection
     product: "",
     brand: "",
     exportingFrom: "",
@@ -69,6 +70,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
     setError("")
     setIsLoading(true)
     if (
+      !formData.tariffSource ||
       !formData.product ||
       !formData.brand ||
       !formData.exportingFrom ||
@@ -108,6 +110,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
         setError(result.error || "Calculation failed")
       }
     } catch (err) {
+      console.log("Calculation error:", err) // Debug log
       setError("An unexpected error occurred during calculation")
     } finally {
       setIsLoading(false)
@@ -126,6 +129,20 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Tariff Source</label>
+            <Select value={formData.tariffSource} onValueChange={(value) => handleInputChange("tariffSource", value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select tariff source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="global">Global Tariffs</SelectItem>
+                <SelectItem value="user">User Defined Tariffs</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Product</label>
