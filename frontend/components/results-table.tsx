@@ -14,6 +14,9 @@ interface ResultsTableProps {
 
 export function ResultsTable({ results }: ResultsTableProps) {
   const [exportError, setExportError] = useState("")
+  
+  // Debug: Log the results to see what we're receiving
+  console.log('ResultsTable received:', results)
 
   const handleExportCSV = async () => {
     try {
@@ -77,7 +80,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
               </div>
               <div>
                 <p className="text-muted-foreground">Total Cost</p>
-                <p className="font-bold text-accent">${results.totalCost.toFixed(2)}</p>
+                <p className="font-bold text-foreground">${results.totalCost.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">{results.tariffType}</p>
               </div>
             </div>
@@ -114,7 +117,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
                   <td className="py-3 px-4 font-bold text-foreground" colSpan={3}>
                     Total Cost
                   </td>
-                  <td className="py-3 px-4 text-right font-bold text-accent">${results.totalCost.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-bold text-foreground">${results.totalCost.toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>

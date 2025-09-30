@@ -1,19 +1,14 @@
 "use client"
-
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { mockCalculateTariff, getCountries, getProductNames, getBrandsForProduct } from "@/lib/mock-api"
 
 interface TariffCalculatorFormProps {
   onCalculationComplete: (results: any) => void
 }
-
 export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculatorFormProps) {
   const [formData, setFormData] = useState({
     product: "",
@@ -27,26 +22,52 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [availableBrands, setAvailableBrands] = useState<any[]>([])
-
-  const products = getProductNames()
-  const countries = getCountries()
-
+  const [products, setProducts] = useState<string[]>([])
+  const [countries, setCountries] = useState<string[]>([])
+  // Load initial data from backend API
+  React.useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        // Get products from backend API
+        const productsResponse = await fetch('http://localhost:8080/api/products')
+        const productsData = await productsResponse.json()
+        setProducts(productsData)
+        
+        // Get countries from backend API
+        const countriesResponse = await fetch('http://localhost:8080/api/countries')
+        const countriesData = await countriesResponse.json()
+        setCountries(countriesData)
+      } catch (error) {
+        console.error('Error loading initial data from backend:', error)
+        setProducts([])
+        setCountries([])
+      }
+    }
+    loadInitialData()
+  }, [])
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     setError("")
-
     if (field === "product") {
-      const brands = getBrandsForProduct(value)
-      setAvailableBrands(brands)
+      const loadBrands = async () => {
+        try {
+          // Get brands from backend API
+          const response = await fetch(`http://localhost:8080/api/brands?product=${encodeURIComponent(value)}`)
+          const brandsData = await response.json()
+          setAvailableBrands(brandsData)
+        } catch (error) {
+          console.error('Error loading brands from backend:', error)
+          setAvailableBrands([])
+        }
+      }
+      loadBrands()
       setFormData((prev) => ({ ...prev, brand: "" })) // Reset brand selection
     }
   }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
-
     if (
       !formData.product ||
       !formData.brand ||
@@ -58,19 +79,33 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
       setIsLoading(false)
       return
     }
-
     if (Number.parseFloat(formData.quantity) <= 0) {
       setError("Quantity must be greater than 0")
       setIsLoading(false)
       return
     }
-
     try {
-      const response = await mockCalculateTariff(formData)
-      if (response.success) {
-        onCalculationComplete(response.data)
+      // Call backend API for calculation
+      const params = new URLSearchParams({
+        product: formData.product,
+        brand: formData.brand,
+        exportingFrom: formData.exportingFrom,
+        importingTo: formData.importingTo,
+        quantity: formData.quantity,
+        ...(formData.customCost && { customCost: formData.customCost })
+      })
+      
+      const response = await fetch(`http://localhost:8080/api/tariff?${params}`)
+      const result = await response.json()
+      
+      if (result.success && result.data) {
+        // Debug: Log the response to see the structure
+        console.log('Backend response:', result)
+        console.log('Data object:', result.data)
+        // Pass the data object to the results table
+        onCalculationComplete(result.data)
       } else {
-        setError(response.error || "Calculation failed")
+        setError(result.error || "Calculation failed")
       }
     } catch (err) {
       setError("An unexpected error occurred during calculation")
@@ -78,7 +113,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
       setIsLoading(false)
     }
   }
-
   return (
     <Card>
       <CardHeader>
@@ -92,7 +126,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Product</label>
@@ -109,7 +142,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Brand</label>
               <Select
@@ -130,7 +162,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               </Select>
             </div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Exporting From</label>
@@ -150,7 +181,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Importing To</label>
               <Select value={formData.importingTo} onValueChange={(value) => handleInputChange("importingTo", value)}>
@@ -167,7 +197,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               </Select>
             </div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">
@@ -186,7 +215,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 step="0.01"
               />
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Custom Cost (USD)</label>
               <Input
@@ -198,7 +226,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 step="0.01"
               />
             </div>
-
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Calculation Date</label>
               <Input
@@ -208,7 +235,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               />
             </div>
           </div>
-
           <Button
             type="submit"
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
@@ -221,3 +247,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
     </Card>
   )
 }
+
+
+

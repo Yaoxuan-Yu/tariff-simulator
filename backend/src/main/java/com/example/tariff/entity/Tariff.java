@@ -1,34 +1,29 @@
 package com.example.tariff.entity;
-
 import jakarta.persistence.*;
-
+import java.io.Serializable;
 @Entity
-@Table(name = "\"Tariff Details (Test)\"")
-public class Tariff {
-
+@Table(name = "\"Tariff Rates (Test)\"")
+@IdClass(TariffId.class)
+public class Tariff implements Serializable {
     @Id
-    @Column(name = "\"Country\"")
+    @Column(name = "\"country\"")
     private String country;
-
-    @Column(name = "\"Partner\"")
+    @Id
+    @Column(name = "\"partner\"")
     private String partner;
     
-    @Column(name = "\"AHS (weighted)\"")
+    @Column(name = "\"ahs_weighted\"")
     private Double ahsWeighted;
     
-    @Column(name = "\"MFN (weighted)\"")
+    @Column(name = "\"mfn_weighted\"")
     private Double mfnWeighted;
-
     // Getters and setters
     public String getCountry() { return country; }
     public void setCountry(String country) { this.country = country; }
-
     public String getPartner() { return partner; }
     public void setPartner(String partner) { this.partner = partner; }
-
     public Double getAhsWeighted() { return ahsWeighted; }
     public void setAhsWeighted(Double ahsWeighted) { this.ahsWeighted = ahsWeighted; }
-
     public Double getMfnWeighted() { return mfnWeighted; }
     public void setMfnWeighted(Double mfnWeighted) { this.mfnWeighted = mfnWeighted; }
 }
