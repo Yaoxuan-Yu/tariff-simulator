@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Download } from "lucide-react"
-import { exportToCSV } from "@/lib/csv-export"
 import { useState } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -21,7 +20,9 @@ export function ResultsTable({ results }: ResultsTableProps) {
   const handleExportCSV = async () => {
     try {
       setExportError("")
-      await exportToCSV(results, "tariff-calculation-results")
+      // TODO: Replace with actual backend API call for CSV export
+      console.log("Export CSV requested for results:", results)
+      alert("CSV export functionality will be handled by the backend")
     } catch (error) {
       setExportError("Failed to export CSV. Please try again.")
     }
@@ -63,7 +64,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
               <div>
                 <p className="text-muted-foreground">Product</p>
                 <p className="font-medium">{results.product}</p>
-                <p className="text-xs text-muted-foreground">{results.brand}</p>
+                <p className="text-xs text-muted-foreground">Brand: {results.brand}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Route</p>
@@ -74,9 +75,9 @@ export function ResultsTable({ results }: ResultsTableProps) {
               <div>
                 <p className="text-muted-foreground">Quantity</p>
                 <p className="font-medium">
-                  {results.quantity} {results.unit}
+                  {results.quantity} x {results.unit}
                 </p>
-                <p className="text-xs text-muted-foreground">Product Cost: ${results.productCost.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">Total Product Cost: ${results.productCost.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Cost</p>
@@ -103,8 +104,14 @@ export function ResultsTable({ results }: ResultsTableProps) {
                     <td className="py-3 px-4 text-foreground">{item.description}</td>
                     <td className="py-3 px-4">
                       <Badge
-                        variant={item.type === "Tariff" ? "default" : "secondary"}
-                        className={item.type === "Tariff" ? "bg-accent/20 text-accent-foreground" : ""}
+                        variant="secondary"
+                        className={
+                          item.type?.toLowerCase() === "tariff"
+                            ? "bg-accent text-accent-foreground"
+                            : item.type?.toLowerCase() === "ahs"
+                            ? "bg-primary text-primary-foreground"
+                            : ""
+                        }
                       >
                         {item.type}
                       </Badge>
