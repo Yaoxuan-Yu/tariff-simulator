@@ -54,6 +54,22 @@ public class TariffController {
         return ResponseEntity.ok(response);
     }
 
+    // Separate endpoints for global vs user-defined tariff definitions
+    @GetMapping("/tariff-definitions/global")
+    public ResponseEntity<TariffDefinitionsResponse> getGlobalTariffDefinitions() {
+        return ResponseEntity.ok(tariffService.getGlobalTariffDefinitions());
+    }
+
+    @GetMapping("/tariff-definitions/user")
+    public ResponseEntity<TariffDefinitionsResponse> getUserTariffDefinitions() {
+        return ResponseEntity.ok(tariffService.getUserTariffDefinitions());
+    }
+
+    @PostMapping("/tariff-definitions/user")
+    public ResponseEntity<TariffDefinitionsResponse> addUserTariffDefinition(@RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        return ResponseEntity.ok(tariffService.addUserTariffDefinition(dto));
+    }
+
     @GetMapping("/export")
     public void exportTariffAsCSV(
             @RequestParam String product,
