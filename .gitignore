@@ -324,3 +324,37 @@ lib-cov/
 *.pem
 .yarn/
 .pnp.*
+
+# --- Added by assistant: ensure envs and Next.js/Maven artifacts are ignored ---
+# Env & secrets (safety net at repo root)
+.env
+.env.*
+*.env
+*.env.*
+
+# Next.js/Node outputs (in case root is used for node tooling)
+.next/
+out/
+
+# JVM crash logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Frontend subproject outputs (if not already ignored)
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/.vercel/
+frontend/.swc/
+frontend/coverage/
+frontend/.eslintcache
+frontend/.cache/
+frontend/dist/
+frontend/node_modules/
+frontend/.env
+frontend/.env.*
+
+# Backend subproject outputs (safety)
+backend/target/
+backend/.env
+backend/.env.*
