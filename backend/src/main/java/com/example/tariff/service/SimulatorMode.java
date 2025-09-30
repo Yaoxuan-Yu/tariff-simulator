@@ -4,24 +4,32 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SimulatorMode implements TariffMode {
+    private final TariffService tariffService;
 
-    private double simulatedAhs;
-    private double simulatedMfn;
-
-    // Default constructor for Spring
-    public SimulatorMode() {}
-
-    // Setter for dynamic rates
-    public void setRates(double ahsRate, double mfnRate) {
-        this.simulatedAhs = ahsRate;
-        this.simulatedMfn = mfnRate;
+    public SimulatorMode(TariffService tariffService) {
+        this.tariffService = tariffService;
     }
 
     @Override
-    public TariffResponse calculate(String importCountry, String exportCountry, String hsCode, String brand) {
-        // Create a simple response for simulator mode
-        // This is a simplified implementation - you may want to enhance this
-        return new TariffResponse(false, "Simulator mode not fully implemented yet");
+    public TariffResponse calculate(
+        String importCountry,
+        String exportCountry,
+        String product,
+        String brand,
+        double quantity,
+        String customCost
+    ) {
+        // Reuse TariffService user-defined logic via calculateWithMode to avoid duplication
+        return tariffService.calculateWithMode(
+            product,
+            brand,
+            exportCountry,
+            importCountry,
+            quantity,
+            customCost,
+            "user",
+            null
+        );
     }
 }
 

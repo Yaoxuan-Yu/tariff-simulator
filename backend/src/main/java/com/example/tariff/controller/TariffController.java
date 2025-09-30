@@ -4,6 +4,7 @@ import com.example.tariff.dto.BrandInfo;
 import com.example.tariff.dto.TariffDefinitionsResponse;
 import com.example.tariff.service.TariffService;
 import com.example.tariff.service.CsvExportService;
+import com.example.tariff.service.ModeManager;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,9 +17,11 @@ import java.util.List;
 public class TariffController {
     private final TariffService tariffService;
     private final CsvExportService csvExportService;
-    public TariffController(TariffService tariffService, CsvExportService csvExportService) {
+    private final ModeManager modeManager;
+    public TariffController(TariffService tariffService, CsvExportService csvExportService, ModeManager modeManager) {
         this.tariffService = tariffService;
         this.csvExportService = csvExportService;
+        this.modeManager = modeManager;
     }
     @GetMapping("/tariff")
     public ResponseEntity<TariffResponse> calculateTariff(
@@ -27,9 +30,23 @@ public class TariffController {
             @RequestParam String exportingFrom,
             @RequestParam String importingTo,
             @RequestParam double quantity,
-            @RequestParam(required = false) String customCost
+            @RequestParam(required = false) String customCost,
+            @RequestParam(required = false) String mode,
+            @RequestParam(required = false) String userTariffId
     ) {
-        TariffResponse response = tariffService.calculate(product, brand, exportingFrom, importingTo, quantity, customCost);
+        if (mode != null && mode.equalsIgnoreCase("user")) {
+            modeManager.useSimulatorMode();
+        } else {
+            modeManager.useGlobalMode();
+        }
+        TariffResponse response = modeManager.calculate(
+            importingTo,
+            exportingFrom,
+            product,
+            brand,
+            quantity,
+            customCost
+        );
         return ResponseEntity.ok(response);
     }
     @GetMapping("/countries")

@@ -4,7 +4,6 @@ import com.example.tariff.dto.BrandInfo;
 import com.example.tariff.dto.TariffDefinitionsResponse;
 import com.example.tariff.entity.Product;
 import com.example.tariff.entity.Tariff;
-import com.example.tariff.exception.NotFoundException;
 import com.example.tariff.repository.ProductRepository;
 import com.example.tariff.repository.TariffRepository;
 import org.springframework.stereotype.Service;
@@ -16,11 +15,105 @@ import java.util.stream.Collectors;
 public class TariffService {
     private final TariffRepository tariffRepository;
     private final ProductRepository productRepository;
-    // In-memory storage for user-defined tariffs (per-session). Replace with persistence as needed.
     private final List<TariffDefinitionsResponse.TariffDefinitionDto> userDefinedTariffs = new ArrayList<>();
     public TariffService(TariffRepository tariffRepository, ProductRepository productRepository) {
         this.tariffRepository = tariffRepository;
         this.productRepository = productRepository;
+    }
+
+    public TariffResponse calculateWithMode(
+        String productName,
+        String brand,
+        String exportingFrom,
+        String importingTo,
+        double quantity,
+        String customCost,
+        String mode,
+        String userTariffId
+    ) {
+        if (mode != null && mode.equalsIgnoreCase("user")) {
+            TariffDefinitionsResponse.TariffDefinitionDto selected = findMatchingUserTariff(
+                userTariffId, productName, exportingFrom, importingTo
+            );
+            if (selected == null) {
+                return new TariffResponse(false, "Selected user-defined tariff not found or not applicable");
+            }
+
+            try {
+                List<Product> products = productRepository.findByNameAndBrand(productName, brand);
+                if (products.isEmpty()) {
+                    return new TariffResponse(false, "Product not found in database");
+                }
+
+                Product selectedProduct = products.get(0);
+                double unitCost = customCost != null && !customCost.isEmpty() ?
+                    Double.parseDouble(customCost) : selectedProduct.getCost();
+                double productCost = unitCost * quantity;
+
+                double tariffRate = selected.getRate();
+                double tariffAmount = (productCost * tariffRate) / 100;
+                double totalCost = productCost + tariffAmount;
+
+                List<TariffResponse.BreakdownItem> breakdown = new ArrayList<>();
+                breakdown.add(new TariffResponse.BreakdownItem(
+                    "Product Cost", "Base Cost", "100%", productCost));
+                breakdown.add(new TariffResponse.BreakdownItem(
+                    "Import Tariff (" + selected.getType() + ")",
+                    "Tariff",
+                    String.format("%.2f%%", tariffRate),
+                    tariffAmount));
+
+                TariffResponse.TariffCalculationData data = new TariffResponse.TariffCalculationData(
+                    selectedProduct.getName(),
+                    selectedProduct.getBrand(),
+                    exportingFrom,
+                    importingTo,
+                    quantity,
+                    selectedProduct.getUnit(),
+                    productCost,
+                    totalCost,
+                    tariffRate,
+                    selected.getType() + " (user-defined)",
+                    breakdown
+                );
+
+                return new TariffResponse(true, data);
+            } catch (Exception e) {
+                return new TariffResponse(false, "An unexpected error occurred during calculation: " + e.getMessage());
+            }
+        }
+
+        // default: global
+        return calculate(productName, brand, exportingFrom, importingTo, quantity, customCost);
+    }
+
+    private TariffDefinitionsResponse.TariffDefinitionDto findMatchingUserTariff(
+        String userTariffId,
+        String product,
+        String exportingFrom,
+        String importingTo
+    ) {
+        // If an explicit ID is provided, prefer exact match
+        if (userTariffId != null && !userTariffId.isEmpty()) {
+            for (TariffDefinitionsResponse.TariffDefinitionDto dto : userDefinedTariffs) {
+                if (userTariffId.equals(dto.getId())
+                    && product.equals(dto.getProduct())
+                    && exportingFrom.equals(dto.getExportingFrom())
+                    && importingTo.equals(dto.getImportingTo())) {
+                    return dto;
+                }
+            }
+            return null;
+        }
+        // Otherwise, pick the first applicable user-defined tariff for the route and product
+        for (TariffDefinitionsResponse.TariffDefinitionDto dto : userDefinedTariffs) {
+            if (product.equals(dto.getProduct())
+                && exportingFrom.equals(dto.getExportingFrom())
+                && importingTo.equals(dto.getImportingTo())) {
+                return dto;
+            }
+        }
+        return null;
     }
     public TariffResponse calculate(String productName, String brand, String exportingFrom, String importingTo, 
                                    double quantity, String customCost) {

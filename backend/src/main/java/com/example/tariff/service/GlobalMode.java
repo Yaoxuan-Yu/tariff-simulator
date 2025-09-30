@@ -12,7 +12,7 @@ public class GlobalMode implements TariffMode{
     }
 
     @Override
-    public TariffResponse calculate(String importCountry, String exportCountry, String hsCode, String brand) {
-        return tariffService.calculate(hsCode, brand, exportCountry, importCountry, 1.0, null);
+    public TariffResponse calculate(String importCountry, String exportCountry, String product, String brand, double quantity, String customCost) {
+        return tariffService.calculate(product, brand, exportCountry, importCountry, quantity, customCost);
     }
 }
