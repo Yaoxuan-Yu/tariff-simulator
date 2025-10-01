@@ -1,6 +1,8 @@
 package com.example.tariff.entity;
 import java.io.Serializable;
 import java.util.Objects;
+
+// handles composite key for the Tariff entity which is the combination of country and partner
 public class TariffId implements Serializable {
     private String country;
     private String partner;

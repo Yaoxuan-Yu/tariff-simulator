@@ -1,4 +1,6 @@
 package com.example.tariff.dto;
+
+// to handle brand information like brand, cost and unit 
 public class BrandInfo {
     private String brand;
     private double cost;

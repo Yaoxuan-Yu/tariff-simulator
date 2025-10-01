@@ -40,11 +40,6 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", "Database operation failed: " + ex.getMessage()));
     }
 
-    @ExceptionHandler(ServiceUnavailableException.class)
-    public ResponseEntity<Map<String, String>> handleServiceUnavailableException(ServiceUnavailableException ex) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of("error", "Service temporarily unavailable: " + ex.getMessage()));
-    }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {

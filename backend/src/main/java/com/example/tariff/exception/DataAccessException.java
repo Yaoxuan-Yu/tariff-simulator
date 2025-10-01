@@ -1,5 +1,6 @@
 package com.example.tariff.exception;
 
+// used in case of database operation failures like connection issues etc
 public class DataAccessException extends RuntimeException {
     public DataAccessException(String message) {
         super(message);

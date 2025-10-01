@@ -3,6 +3,7 @@ package com.example.tariff.service;
 import com.example.tariff.dto.TariffResponse;
 import org.springframework.stereotype.Component;
 
+// global mode is the default mode that is used when no mode is specified (between global mode and simulator mode)
 @Component
 public class GlobalMode implements TariffMode{
     private final TariffService tariffService;

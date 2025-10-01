@@ -1,5 +1,6 @@
 package com.example.tariff.dto;
 
+// to handle tariff rate information like country, partner, ahsWeighted, mfnWeighted and productCost (optional)
 public class TariffRateDto {
     private String country;
     private String partner;
@@ -24,7 +25,6 @@ public class TariffRateDto {
         this.productCost = productCost;
     }
 
-    // Getters and setters
     public String getCountry() { return country; }
     public void setCountry(String country) { this.country = country; }
     public String getPartner() { return partner; }
