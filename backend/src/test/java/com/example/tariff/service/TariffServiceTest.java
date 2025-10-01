@@ -6,6 +6,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,14 +109,11 @@ public class TariffServiceTest {
                 when(productRepository.findByNameAndBrand("Non-existent Product", "Test Brand"))
                         .thenReturn(List.of());
 
-                // 执行测试
-                TariffResponse response = tariffService.calculate(
-                        "Non-existent Product", "Test Brand", "Singapore", "China", 3, null);
-
-                // 验证结果
-
-                assertFalse(response.isSuccess());
-                assertEquals("Product not found in database", response.getError());
+                // 执行测试 - 现在应该抛出异常
+                assertThrows(com.example.tariff.exception.NotFoundException.class, () -> {
+                        tariffService.calculate(
+                                "Non-existent Product", "Test Brand", "Singapore", "China", 3, null);
+                });
         }
 
         @Test
@@ -126,13 +124,11 @@ public class TariffServiceTest {
                 when(tariffRepository.findByCountryAndPartner("Mars", "Earth"))
                         .thenReturn(Optional.empty());
 
-                // 执行测试
-                TariffResponse response = tariffService.calculate(
-                        "Test Product", "Test Brand", "Earth", "Mars", 3, null);
-
-                // 验证结果
-                assertFalse(response.isSuccess());
-                assertEquals("Tariff data not available for this country pair", response.getError());
+                // 执行测试 - 现在应该抛出异常
+                assertThrows(com.example.tariff.exception.NotFoundException.class, () -> {
+                        tariffService.calculate(
+                                "Test Product", "Test Brand", "Earth", "Mars", 3, null);
+                });
         }
 
         @Test
@@ -225,41 +221,20 @@ public class TariffServiceTest {
 
         @Test
         void calculate_QuantityZero() {
-                // 模拟Repository行为
-                when(productRepository.findByNameAndBrand("Test Product", "Test Brand"))
-                        .thenReturn(List.of(testProduct));
-                when(tariffRepository.findByCountryAndPartner("China", "Singapore"))
-                        .thenReturn(Optional.of(testTariffWithFTA));
-
-                // 执行测试，数量为0
-                TariffResponse response = tariffService.calculate(
-                        "Test Product", "Test Brand", "Singapore", "China", 0, null);
-
-                // 验证结果
-                assertTrue(response.isSuccess());
-                assertEquals(0.0, response.getData().getProductCost()); // 0件，成本为0
-                assertEquals(0.0, response.getData().getTotalCost()); // 总成本也为0
+                // 执行测试 - 现在应该抛出异常（不需要模拟Repository，因为验证在调用Repository之前）
+                assertThrows(com.example.tariff.exception.ValidationException.class, () -> {
+                        tariffService.calculate(
+                                "Test Product", "Test Brand", "Singapore", "China", 0, null);
+                });
         }
 
         @Test
-                void calculate_QuantityNegative() {
-                // 模拟Repository行为
-                when(productRepository.findByNameAndBrand("Test Product", "Test Brand"))
-                        .thenReturn(List.of(testProduct));
-                when(tariffRepository.findByCountryAndPartner("China", "Singapore"))
-                        .thenReturn(Optional.of(testTariffWithFTA));
-
-                // 执行测试，数量为负数
-                TariffResponse response = tariffService.calculate(
-                        "Test Product", "Test Brand", "Singapore", "China", -5, null);
-
-                // 这里要看你的业务逻辑如何处理负数。
-                // 如果业务逻辑允许负数并返回相应结果，则验证结果。
-                // 如果业务逻辑不允许负数并抛出异常或返回错误，则验证错误信息。
-                // 以下是假设业务逻辑允许负数的情况：
-                assertTrue(response.isSuccess());
-                assertEquals(-50.0, response.getData().getProductCost()); // -5件 * 10元 = -50元
-                assertEquals(-51.0, response.getData().getTotalCost()); // -50 + (-50 * 2%) = -51元
+        void calculate_QuantityNegative() {
+                // 执行测试 - 现在应该抛出异常（不需要模拟Repository，因为验证在调用Repository之前）
+                assertThrows(com.example.tariff.exception.ValidationException.class, () -> {
+                        tariffService.calculate(
+                                "Test Product", "Test Brand", "Singapore", "China", -5, null);
+                });
         }
 
         @Test
@@ -288,14 +263,11 @@ public class TariffServiceTest {
                 when(tariffRepository.findByCountryAndPartner("China", "Singapore"))
                         .thenReturn(Optional.of(testTariffWithFTA));
 
-                // 执行测试，使用非数字的自定义成本
-                TariffResponse response = tariffService.calculate(
-                        "Test Product", "Test Brand", "Singapore", "China", 2, "abc");
-
-                // 由于字符串"abc"无法转换为数字，服务应该返回错误
-                assertFalse(response.isSuccess());
-                assertTrue(response.getError().contains("unexpected error occurred") || 
-                        response.getError().contains("NumberFormatException"));
+                // 执行测试 - 现在应该抛出异常
+                assertThrows(com.example.tariff.exception.ValidationException.class, () -> {
+                        tariffService.calculate(
+                                "Test Product", "Test Brand", "Singapore", "China", 2, "abc");
+                });
         }
 
         @Test

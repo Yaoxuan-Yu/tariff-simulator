@@ -2,6 +2,7 @@ package com.example.tariff.service;
 import com.example.tariff.dto.TariffResponse;
 import org.springframework.stereotype.Component;
 
+// simulator mode is the mode that is used when the user wants to define their own tariff rules
 @Component
 public class SimulatorMode implements TariffMode {
     private final TariffService tariffService;
@@ -19,7 +20,6 @@ public class SimulatorMode implements TariffMode {
         double quantity,
         String customCost
     ) {
-        // Reuse TariffService user-defined logic via calculateWithMode to avoid duplication
         return tariffService.calculateWithMode(
             product,
             brand,

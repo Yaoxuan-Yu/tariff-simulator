@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 import java.util.Optional;
 
+// // provides a layer of abstraction for the database operations for the tariff entity, and provides a clean interface for the service layer to use
 public interface TariffRepository extends JpaRepository<Tariff, Long> {
     Optional<Tariff> findByCountryAndPartner(String country, String partner);
     

@@ -1,6 +1,8 @@
 package com.example.tariff.entity;
 import jakarta.persistence.*;
 import java.io.Serializable;
+
+// retrieves tariff information like country, partner, ahsWeighted and mfnWeighted from the Tariff Rates (Test) table in supabase 
 @Entity
 @Table(name = "\"Tariff Rates (Test)\"")
 @IdClass(TariffId.class)
@@ -17,7 +19,7 @@ public class Tariff implements Serializable {
     
     @Column(name = "\"mfn_weighted\"")
     private Double mfnWeighted;
-    // Getters and setters
+
     public String getCountry() { return country; }
     public void setCountry(String country) { this.country = country; }
     public String getPartner() { return partner; }

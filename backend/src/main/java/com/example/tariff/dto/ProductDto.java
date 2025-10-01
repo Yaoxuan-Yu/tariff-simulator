@@ -1,5 +1,6 @@
 package com.example.tariff.dto;
 
+// to handle product information like name, brand, cost and unit
 public class ProductDto {
     private String name;
     private String brand;

@@ -3,6 +3,8 @@ import com.example.tariff.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import java.util.List;
+
+// provides a layer of abstraction for the database operations for the product entity, and provides a clean interface for the service layer to use
 public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByName(String name);
     List<Product> findByHsCode(String hsCode);

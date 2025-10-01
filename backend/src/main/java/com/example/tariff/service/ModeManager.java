@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.tariff.dto.TariffResponse;
 
+// manages the mode selection between global mode and simulator mode
 @Service
 public class ModeManager {
     private final GlobalMode globalMode;

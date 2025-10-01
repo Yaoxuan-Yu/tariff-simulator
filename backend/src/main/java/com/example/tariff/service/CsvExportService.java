@@ -5,6 +5,9 @@ import org.springframework.stereotype.Service;
 import com.example.tariff.dto.TariffResponse;
 import com.example.tariff.exception.ExportException;
 import jakarta.servlet.http.HttpServletResponse;
+
+// service files in general are in between the controller and the repository and contains the business logic in terms of implementing tariff calculations and validations etc
+
 @Service
 public class CsvExportService {
     public void exportSingleTariffAsCSV(TariffResponse tariffResponse, HttpServletResponse response) {

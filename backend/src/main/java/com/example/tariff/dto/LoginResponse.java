@@ -1,5 +1,6 @@
 package com.example.tariff.dto;
 
+// handles login + includes a nested user dto
 public class LoginResponse {
     private boolean success;
     private UserDto user;
@@ -17,7 +18,6 @@ public class LoginResponse {
         this.error = error;
     }
 
-    // Getters and setters
     public boolean isSuccess() { return success; }
     public void setSuccess(boolean success) { this.success = success; }
     public UserDto getUser() { return user; }
@@ -38,7 +38,6 @@ public class LoginResponse {
             this.email = email;
         }
 
-        // Getters and setters
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
         public String getName() { return name; }

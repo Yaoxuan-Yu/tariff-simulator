@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import supabase from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -65,11 +66,19 @@ export function TariffDefinitionsTable() {
   useEffect(() => {
     const loadTariffs = async () => {
       try {
+        // Get Supabase JWT token for all API endpoints
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        const authHeaders = {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+
         const [globalRes, userRes, countriesRes, productsRes] = await Promise.all([
-          fetch("http://localhost:8080/api/tariff-definitions/global"),
-          fetch("http://localhost:8080/api/tariff-definitions/user"),
-          fetch("http://localhost:8080/api/countries"),
-          fetch("http://localhost:8080/api/products"),
+          fetch("http://localhost:8080/api/tariff-definitions/global", { headers: authHeaders }),
+          fetch("http://localhost:8080/api/tariff-definitions/user", { headers: authHeaders }),
+          fetch("http://localhost:8080/api/countries", { headers: authHeaders }),
+          fetch("http://localhost:8080/api/products", { headers: authHeaders }),
         ])
 
         if (!globalRes.ok) throw new Error(`Global defs failed ${globalRes.status}`)
@@ -125,9 +134,16 @@ export function TariffDefinitionsTable() {
     }
 
     try {
+      // Get Supabase JWT token for protected endpoint
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
       const res = await fetch("http://localhost:8080/api/tariff-definitions/user", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error(`Add user tariff failed ${res.status}`)

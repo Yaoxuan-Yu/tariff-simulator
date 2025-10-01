@@ -1,5 +1,7 @@
 package com.example.tariff.entity;
 import jakarta.persistence.*;
+
+// retrieves product information like id, hsCode, name, brand, cost and unit from the Products (Test) table in supabase 
 @Entity
 @Table(name = "\"Products (Test)\"")
 public class Product {
@@ -16,7 +18,7 @@ public class Product {
     private Double cost;
     @Column(name = "\"unit\"")
     private String unit;
-    // Getters and setters
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getHsCode() { return hsCode; }

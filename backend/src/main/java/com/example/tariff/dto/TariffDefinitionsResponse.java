@@ -2,6 +2,8 @@ package com.example.tariff.dto;
 
 import java.util.List;
 
+// to handle tariff definitions response like success status 
+// also includes a nested tariff definition dto
 public class TariffDefinitionsResponse {
     private boolean success;
     private List<TariffDefinitionDto> data;
@@ -51,7 +53,6 @@ public class TariffDefinitionsResponse {
             this.expirationDate = expirationDate;
         }
 
-        // Getters and setters
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
         public String getProduct() { return product; }

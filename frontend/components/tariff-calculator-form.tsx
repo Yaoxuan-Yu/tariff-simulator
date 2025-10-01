@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import supabase from "@/lib/supabaseClient"
 
 interface TariffCalculatorFormProps {
   onCalculationComplete: (results: any) => void
@@ -31,13 +32,21 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
   React.useEffect(() => {
     const loadInitialData = async () => {
       try {
+        // Get Supabase JWT token for all API endpoints
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        const authHeaders = {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+
         // Get products from backend API
-        const productsResponse = await fetch('http://localhost:8080/api/products')
+        const productsResponse = await fetch('http://localhost:8080/api/products', { headers: authHeaders })
         const productsData = await productsResponse.json()
         setProducts(productsData)
         
         // Get countries from backend API
-        const countriesResponse = await fetch('http://localhost:8080/api/countries')
+        const countriesResponse = await fetch('http://localhost:8080/api/countries', { headers: authHeaders })
         const countriesData = await countriesResponse.json()
         setCountries(countriesData)
       } catch (error) {
@@ -54,8 +63,16 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
     if (field === "product") {
       const loadBrands = async () => {
         try {
+          // Get Supabase JWT token for API endpoint
+          const { data: { session } } = await supabase.auth.getSession()
+          const token = session?.access_token
+          const authHeaders = {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          }
+
           // Get brands from backend API
-          const response = await fetch(`http://localhost:8080/api/brands?product=${encodeURIComponent(value)}`)
+          const response = await fetch(`http://localhost:8080/api/brands?product=${encodeURIComponent(value)}`, { headers: authHeaders })
           const brandsData = await response.json()
           setAvailableBrands(brandsData)
           // If there's only one brand for the selected product, auto-select it
@@ -74,7 +91,15 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
       if (value === "user") {
         const loadUserTariffs = async () => {
           try {
-            const res = await fetch('http://localhost:8080/api/tariff-definitions/user')
+            // Get Supabase JWT token for API endpoint
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
+            const authHeaders = {
+              'Authorization': token ? `Bearer ${token}` : '',
+              'Content-Type': 'application/json'
+            }
+
+            const res = await fetch('http://localhost:8080/api/tariff-definitions/user', { headers: authHeaders })
             const data = await res.json()
             if (data.success && data.data) {
               setUserTariffs(data.data)
@@ -123,7 +148,16 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
         ...(formData.tariffSource === "user" ? { mode: "user" } : {})
       })
       
-      const response = await fetch(`http://localhost:8080/api/tariff?${params}`)
+      // Get Supabase JWT token
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      const response = await fetch(`http://localhost:8080/api/tariff?${params}`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      })
       const result = await response.json()
       
       if (result.success && result.data) {

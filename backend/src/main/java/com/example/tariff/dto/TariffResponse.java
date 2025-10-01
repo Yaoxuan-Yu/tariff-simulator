@@ -1,5 +1,7 @@
 package com.example.tariff.dto;
 import java.util.List;
+
+// to handle tariff response like success status and to display results of calculation 
 public class TariffResponse {
     private boolean success;
     private TariffCalculationData data;
@@ -15,7 +17,7 @@ public class TariffResponse {
         this.success = success;
         this.error = error;
     }
-    // Getters and setters
+
     public boolean isSuccess() { return success; }
     public void setSuccess(boolean success) { this.success = success; }
     public TariffCalculationData getData() { return data; }
@@ -53,7 +55,6 @@ public class TariffResponse {
             this.breakdown = breakdown;
         }
 
-        // Getters and setters
         public String getProduct() { return product; }
         public void setProduct(String product) { this.product = product; }
         public String getBrand() { return brand; }
@@ -78,6 +79,7 @@ public class TariffResponse {
         public void setBreakdown(List<BreakdownItem> breakdown) { this.breakdown = breakdown; }
     }
 
+    // for the breakdown that is displayed in the frontend to show the breakdown of the tariff
     public static class BreakdownItem {
         private String description;
         private String type;

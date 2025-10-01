@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
+// has main business logic including tariff calculations, data retrieval and fta logic (ahs vs mhn)
 @Service
 public class TariffService {
     private final TariffRepository tariffRepository;
@@ -118,10 +120,26 @@ public class TariffService {
     public TariffResponse calculate(String productName, String brand, String exportingFrom, String importingTo, 
                                    double quantity, String customCost) {
         try {
+            // Validate inputs
+            if (productName == null || productName.trim().isEmpty()) {
+                throw new com.example.tariff.exception.ValidationException("Product name is required");
+            }
+            if (brand == null || brand.trim().isEmpty()) {
+                throw new com.example.tariff.exception.ValidationException("Brand is required");
+            }
+            if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
+                throw new com.example.tariff.exception.ValidationException("Exporting country is required");
+            }
+            if (importingTo == null || importingTo.trim().isEmpty()) {
+                throw new com.example.tariff.exception.ValidationException("Importing country is required");
+            }
+            if (quantity <= 0) {
+                throw new com.example.tariff.exception.ValidationException("Quantity must be greater than 0");
+            }
 
             List<Product> products = productRepository.findByNameAndBrand(productName, brand);
             if (products.isEmpty()) {
-                return new TariffResponse(false, "Product not found in database");
+                throw new com.example.tariff.exception.NotFoundException("Product not found: " + productName + " - " + brand);
             }
             
             Product selectedProduct = products.get(0);
@@ -130,7 +148,7 @@ public class TariffService {
                     .orElse(null);
             
             if (tariff == null) {
-                return new TariffResponse(false, "Tariff data not available for this country pair");
+                throw new com.example.tariff.exception.NotFoundException("Tariff data not available for " + exportingFrom + " to " + importingTo);
             }
 
             double unitCost = customCost != null && !customCost.isEmpty() ? 
@@ -168,8 +186,12 @@ public class TariffService {
             );
             
             return new TariffResponse(true, data);
+        } catch (com.example.tariff.exception.ValidationException | com.example.tariff.exception.NotFoundException e) {
+            throw e; // Re-throw validation and not found exceptions
+        } catch (NumberFormatException e) {
+            throw new com.example.tariff.exception.ValidationException("Invalid custom cost format: " + customCost);
         } catch (Exception e) {
-            return new TariffResponse(false, "An unexpected error occurred during calculation: " + e.getMessage());
+            throw new com.example.tariff.exception.DataAccessException("Database error during tariff calculation", e);
         }
     }
 
@@ -191,10 +213,25 @@ public class TariffService {
         return productRepository.findDistinctProducts();
     }
     public List<BrandInfo> getBrandsByProduct(String product) {
-        List<Product> products = productRepository.findByName(product);
-        return products.stream()
-                .map(p -> new BrandInfo(p.getBrand(), p.getCost(), p.getUnit()))
-                .collect(Collectors.toList());
+        if (product == null || product.trim().isEmpty()) {
+            throw new com.example.tariff.exception.ValidationException("Product name cannot be null or empty");
+        }
+        
+        try {
+            List<Product> products = productRepository.findByName(product);
+            if (products.isEmpty()) {
+                throw new com.example.tariff.exception.NotFoundException("No products found for: " + product);
+            }
+            
+            return products.stream()
+                    .map(p -> new BrandInfo(p.getBrand(), p.getCost(), p.getUnit()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            if (e instanceof com.example.tariff.exception.NotFoundException) {
+                throw e;
+            }
+            throw new com.example.tariff.exception.DataAccessException("Failed to retrieve brands for product: " + product, e);
+        }
     }
 
     public TariffDefinitionsResponse getTariffDefinitions() {
@@ -249,19 +286,31 @@ public class TariffService {
     public TariffDefinitionsResponse addUserTariffDefinition(TariffDefinitionsResponse.TariffDefinitionDto dto) {
         try {
             // Basic validation
-            if (dto.getProduct() == null || dto.getProduct().isEmpty() ||
-                dto.getExportingFrom() == null || dto.getExportingFrom().isEmpty() ||
-                dto.getImportingTo() == null || dto.getImportingTo().isEmpty() ||
-                dto.getType() == null || dto.getType().isEmpty()) {
-                return new TariffDefinitionsResponse(false, "Missing required fields for user-defined tariff");
+            if (dto.getProduct() == null || dto.getProduct().trim().isEmpty()) {
+                throw new com.example.tariff.exception.ValidationException("Product is required for user-defined tariff");
             }
-            if (dto.getId() == null || dto.getId().isEmpty()) {
+            if (dto.getExportingFrom() == null || dto.getExportingFrom().trim().isEmpty()) {
+                throw new com.example.tariff.exception.ValidationException("Exporting country is required for user-defined tariff");
+            }
+            if (dto.getImportingTo() == null || dto.getImportingTo().trim().isEmpty()) {
+                throw new com.example.tariff.exception.ValidationException("Importing country is required for user-defined tariff");
+            }
+            if (dto.getType() == null || dto.getType().trim().isEmpty()) {
+                throw new com.example.tariff.exception.ValidationException("Tariff type is required for user-defined tariff");
+            }
+            if (dto.getRate() < 0) {
+                throw new com.example.tariff.exception.ValidationException("Tariff rate cannot be negative");
+            }
+            
+            if (dto.getId() == null || dto.getId().trim().isEmpty()) {
                 dto.setId("user-" + System.currentTimeMillis());
             }
             userDefinedTariffs.add(dto);
             return new TariffDefinitionsResponse(true, List.of(dto));
+        } catch (com.example.tariff.exception.ValidationException e) {
+            throw e; // Re-throw validation exceptions
         } catch (Exception e) {
-            return new TariffDefinitionsResponse(false, "Failed to add user-defined tariff: " + e.getMessage());
+            throw new com.example.tariff.exception.DataAccessException("Failed to add user-defined tariff", e);
         }
     }
 }
