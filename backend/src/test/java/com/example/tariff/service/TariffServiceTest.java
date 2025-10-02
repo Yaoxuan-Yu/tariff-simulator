@@ -218,6 +218,35 @@ public class TariffServiceTest {
                 assertEquals("Selected user-defined tariff not found or not applicable", response.getError());
         }
 
+        @Test
+        void calculateWithMode_InvalidMode() {
+                when(productRepository.findByNameAndBrand("Test product", "Test brand"))
+                .thenReturn(List.of(testProduct));
+                
+                assertThrows(com.example.tariff.exception.ValidationException.class, () -> {
+                tariffService.calculateWithMode("Test Product", "Test Brand", "Singapore", "China", 2, null, "invalid_mode", null)});
+        }
+
+        @Test
+        void calculate_NullInputs_ShouldThrowValidationException() {
+                assertThrows(com.example.tariff.exception.ValidationException.class, () -> {
+                tariffService.calculate(
+                null, "Test Brand", "Singapore", "China", 1, null
+                );
+        });
+
+        assertThrows(com.example.tariff.exception.ValidationException.class, () -> {
+        tariffService.calculate(
+                "Test Product", null, "Singapore", "China", 1, null
+                );
+        });
+
+        assertThrows(com.example.tariff.exception.ValidationException.class, () -> {
+        tariffService.calculate(
+                "Test Product", "Test Brand", null, "China", 1, null
+                );
+        });
+        }
 
         @Test
         void calculate_QuantityZero() {
@@ -288,4 +317,7 @@ public class TariffServiceTest {
                 assertEquals(10_000_000.0, response.getData().getProductCost()); // 1e6件 * 10元 = 1e7元
                 assertEquals(10_200_000.0, response.getData().getTotalCost()); // 1e7 + (1e7 * 2%) = 10,200,000元
         }
+
+        @Test
+        void calculateWithMode_UserDefinedTariff_NotFound
 }
