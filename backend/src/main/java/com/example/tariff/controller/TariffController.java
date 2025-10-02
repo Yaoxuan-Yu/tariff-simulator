@@ -10,7 +10,11 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
+@Tag(name="Tariffs", description="A summary of all our API endpoints for tariff calculations and related data")
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 
@@ -24,6 +28,8 @@ public class TariffController {
         this.csvExportService = csvExportService;
         this.modeManager = modeManager;
     }
+
+    @Operation(summary = "Calculate tariff rates for importing products between countries")
     @GetMapping("/tariff")
     public ResponseEntity<TariffResponse> calculateTariff(
             @RequestParam String product,
@@ -76,18 +82,26 @@ public class TariffController {
         );
         return ResponseEntity.ok(response);
     }
+    
+    @Operation(summary = "Retrieve list of all countries (exporting)")
     @GetMapping("/countries")
     public ResponseEntity<List<String>> getAllCountries() {
         return ResponseEntity.ok(tariffService.getAllCountries());
     }
+
+    @Operation(summary = "Retrieve list of all countries (importing)")
     @GetMapping("/partners")
     public ResponseEntity<List<String>> getAllPartners() {
         return ResponseEntity.ok(tariffService.getAllPartners());
     }
+
+    @Operation(summary = "Retrieve a list of all available products")
     @GetMapping("/products")
     public ResponseEntity<List<String>> getAllProducts() {
         return ResponseEntity.ok(tariffService.getAllProducts());
     }
+
+    @Operation(summary = "Get available brands for a specific product")
     @GetMapping("/brands")
     public ResponseEntity<List<BrandInfo>> getBrandsByProduct(@RequestParam String product) {
         if (product == null || product.trim().isEmpty()) {
@@ -95,6 +109,8 @@ public class TariffController {
         }
         return ResponseEntity.ok(tariffService.getBrandsByProduct(product));
     }
+
+    @Operation(summary = "Retrieve all tariff definitions (both global and user-defined)")
     @GetMapping("/tariff-definitions")
     public ResponseEntity<TariffDefinitionsResponse> getTariffDefinitions() {
         TariffDefinitionsResponse response = tariffService.getTariffDefinitions();
@@ -102,16 +118,19 @@ public class TariffController {
     }
 
     // Separate endpoints for global vs user-defined tariff definitions
+    @Operation(summary = "Retrieve only global/system tariff definitions that is currently stored in the database.")
     @GetMapping("/tariff-definitions/global")
     public ResponseEntity<TariffDefinitionsResponse> getGlobalTariffDefinitions() {
         return ResponseEntity.ok(tariffService.getGlobalTariffDefinitions());
     }
 
+    @Operation(summary = "Retrieve only user-defined tariff definitions")
     @GetMapping("/tariff-definitions/user")
     public ResponseEntity<TariffDefinitionsResponse> getUserTariffDefinitions() {
         return ResponseEntity.ok(tariffService.getUserTariffDefinitions());
     }
 
+    @Operation(summary = "Add a new user-defined tariff definition")
     @PostMapping("/tariff-definitions/user")
     public ResponseEntity<TariffDefinitionsResponse> addUserTariffDefinition(@RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
         if (dto == null) {
@@ -120,6 +139,7 @@ public class TariffController {
         return ResponseEntity.ok(tariffService.addUserTariffDefinition(dto));
     }
 
+    @Operation(summary = "Export tariff calculation results as CSV file (feature yet to be implemented)")
     @GetMapping("/export")
     public void exportTariffAsCSV(
             @RequestParam String product,
