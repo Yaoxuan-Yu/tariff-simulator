@@ -224,7 +224,8 @@ public class TariffServiceTest {
                 .thenReturn(List.of(testProduct));
                 
                 assertThrows(com.example.tariff.exception.ValidationException.class, () -> {
-                tariffService.calculateWithMode("Test Product", "Test Brand", "Singapore", "China", 2, null, "invalid_mode", null)});
+                tariffService.calculateWithMode("Test Product", "Test Brand", "Singapore", "China", 2, null, "invalid_mode", null);
+        });
         }
 
         @Test
@@ -318,6 +319,4 @@ public class TariffServiceTest {
                 assertEquals(10_200_000.0, response.getData().getTotalCost()); // 1e7 + (1e7 * 2%) = 10,200,000元
         }
 
-        @Test
-        void calculateWithMode_UserDefinedTariff_NotFound
 }
