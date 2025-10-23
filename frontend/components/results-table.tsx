@@ -46,7 +46,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
           className="flex items-center gap-2 bg-transparent"
         >
           <Download className="h-4 w-4" />
-          Export CSV
+          Add To Export Cart
         </Button>
       </CardHeader>
       <CardContent>
