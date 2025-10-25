@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+
+import java.io.IOException;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -172,7 +174,7 @@ public class TariffController {
     public void exportHistoryAsCSV(
             HttpSession session,
             HttpServletResponse response
-    ) {
+    ) throws IOException {
         SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
 
         if (sessionHistory == null || sessionHistory.isEmpty()) {
