@@ -114,6 +114,15 @@
 			<version>0.12.3</version>
 			<scope>runtime</scope>
 		</dependency>
+		<!-- redis dependency for storing session data -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.session</groupId>
+			<artifactId>spring-session-data-redis</artifactId>
+		</dependency>
 		<!-- Environment variables support -->
 		<dependency>
 			<groupId>io.github.cdimascio</groupId>

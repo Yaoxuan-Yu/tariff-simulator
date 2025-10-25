@@ -3,11 +3,15 @@ import com.example.tariff.dto.TariffResponse;
 import com.example.tariff.dto.BrandInfo;
 import com.example.tariff.dto.TariffDefinitionsResponse;
 import com.example.tariff.service.TariffService;
+import com.example.tariff.session.SessionHistory;
 import com.example.tariff.service.CsvExportService;
 import com.example.tariff.service.ModeManager;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,7 +43,8 @@ public class TariffController {
             @RequestParam double quantity,
             @RequestParam(required = false) String customCost,
             @RequestParam(required = false) String mode,
-            @RequestParam(required = false) String userTariffId
+            @RequestParam(required = false) String userTariffId,
+            HttpSession session
     ) {
         // Input validation
         if (product == null || product.trim().isEmpty()) {
@@ -80,6 +85,17 @@ public class TariffController {
             quantity,
             customCost
         );
+
+        // Retrieve or initialize user's session history and add current calculation.
+        SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
+        if (sessionHistory == null) {
+            sessionHistory = new SessionHistory();
+        }
+
+        // Add calculation and persist back to session
+        sessionHistory.addCalculation(response);
+        session.setAttribute("tariffHistory", sessionHistory);
+
         return ResponseEntity.ok(response);
     }
     
@@ -139,34 +155,46 @@ public class TariffController {
         return ResponseEntity.ok(tariffService.addUserTariffDefinition(dto));
     }
 
+    @Operation(summary = "Retrieve all session-based tariff calculations")
+    @GetMapping("/tariff/history")
+    public ResponseEntity<?> getHistory(HttpSession session) {
+        SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
+
+        if (sessionHistory == null || sessionHistory.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No tariff history found for this session.");
+        }
+
+        return ResponseEntity.ok(sessionHistory.getHistory());
+    }
+
     @Operation(summary = "Export tariff calculation results as CSV file (feature yet to be implemented)")
     @GetMapping("/export")
-    public void exportTariffAsCSV(
-            @RequestParam String product,
-            @RequestParam String brand,
-            @RequestParam String exportingFrom,
-            @RequestParam String importingTo,
-            @RequestParam double quantity,
-            @RequestParam(required = false) String customCost,
+    public void exportHistoryAsCSV(
+            HttpSession session,
             HttpServletResponse response
     ) {
-        // Input validation
-        if (product == null || product.trim().isEmpty()) {
-            throw new com.example.tariff.exception.BadRequestException("Product is required");
+        SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
+
+        if (sessionHistory == null || sessionHistory.isEmpty()) {
+            response.setStatus(HttpStatus.NO_CONTENT.value());
+            response.getWriter().write("No session history to export");
+            return;
         }
-        if (brand == null || brand.trim().isEmpty()) {
-            throw new com.example.tariff.exception.BadRequestException("Brand is required");
+
+        csvExportService.exportHistoryAsCSV(sessionHistory.getHistory(), response);
+    }    
+    
+
+    @Operation(summary = "Clear the current user's session tariff history")
+    @DeleteMapping("/tariff/history")
+    public ResponseEntity<String> clearHistory(HttpSession session) {
+        SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
+
+        if (sessionHistory != null) {
+            sessionHistory.clear();
+            session.setAttribute("tariffHistory", sessionHistory);
         }
-        if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
-            throw new com.example.tariff.exception.BadRequestException("Exporting country is required");
-        }
-        if (importingTo == null || importingTo.trim().isEmpty()) {
-            throw new com.example.tariff.exception.BadRequestException("Importing country is required");
-        }
-        if (quantity <= 0) {
-            throw new com.example.tariff.exception.BadRequestException("Quantity must be greater than 0");
-        }
-        TariffResponse tariffResponse = tariffService.calculate(product, brand, exportingFrom, importingTo, quantity, customCost);
-        csvExportService.exportSingleTariffAsCSV(tariffResponse, response);
+
+        return ResponseEntity.ok("Tariff history cleared successfully.");
     }
 }
