@@ -17,7 +17,7 @@ import java.util.List;
 @Service
 public class CsvExportService {
     // Export multiple tariff history calculations
-    public void exportHistoryAsCSV(List<TariffResponse> history, HttpServletResponse response) {
+    public void exportAsCSV(List<TariffResponse> history, HttpServletResponse response) {
         configureResponse(response, "tariff_history.csv");
         try (PrintWriter writer = response.getWriter()) {
             if (history == null || history.isEmpty()) {

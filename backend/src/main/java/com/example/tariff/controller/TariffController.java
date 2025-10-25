@@ -1,9 +1,10 @@
 package com.example.tariff.controller;
 import com.example.tariff.dto.TariffResponse;
+import com.example.tariff.model.SessionHistory;
+import com.example.tariff.model.ExportCart;
 import com.example.tariff.dto.BrandInfo;
 import com.example.tariff.dto.TariffDefinitionsResponse;
 import com.example.tariff.service.TariffService;
-import com.example.tariff.session.SessionHistory;
 import com.example.tariff.service.CsvExportService;
 import com.example.tariff.service.ModeManager;
 
@@ -183,7 +184,7 @@ public class TariffController {
             return;
         }
 
-        csvExportService.exportHistoryAsCSV(sessionHistory.getHistory(), response);
+        csvExportService.exportAsCSV(sessionHistory.getHistory(), response);
     }    
     
 
@@ -199,4 +200,57 @@ public class TariffController {
 
         return ResponseEntity.ok("Tariff history cleared successfully.");
     }
+
+    @Operation(summary = "Add a tariff calculation to export cart")
+    @PostMapping("/export-cart/add")
+    public ResponseEntity<String> addToExportCart(
+            @RequestBody TariffResponse tariffResponse,
+            HttpSession session
+    ) {
+        ExportCart exportCart = (ExportCart) session.getAttribute("exportCart");
+        if (exportCart == null) {
+            exportCart = new ExportCart();
+        }
+        exportCart.addItem(tariffResponse);
+        session.setAttribute("exportCart", exportCart);
+
+        return ResponseEntity.ok("Calculation added to export cart.");
+    }
+
+    @Operation(summary = "View items in the export cart")
+    @GetMapping("/export-cart")
+    public ResponseEntity<List<TariffResponse>> viewExportCart(HttpSession session) {
+        ExportCart exportCart = (ExportCart) session.getAttribute("exportCart");
+        if (exportCart == null || exportCart.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(exportCart.getItems());
+    }
+
+    @Operation(summary = "Remove an item from the export cart by index")
+    @DeleteMapping("/export-cart/{index}")
+    public ResponseEntity<String> removeFromExportCart(@PathVariable int index, HttpSession session) {
+        ExportCart exportCart = (ExportCart) session.getAttribute("exportCart");
+        if (exportCart == null || exportCart.isEmpty()) {
+            return ResponseEntity.badRequest().body("Export cart is empty.");
+        }
+        exportCart.removeItem(index);
+        session.setAttribute("exportCart", exportCart);
+        return ResponseEntity.ok("Item removed from export cart.");
+    }
+
+    @Operation(summary = "Export all items in the export cart as CSV")
+    @GetMapping("/export-cart/export")
+    public void exportCartAsCsv(HttpSession session, HttpServletResponse response) throws IOException {
+        ExportCart exportCart = (ExportCart) session.getAttribute("exportCart");
+
+        if (exportCart == null || exportCart.isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+            response.getWriter().write("No items in export cart to export.");
+            return;
+        }
+
+        csvExportService.exportAsCSV(exportCart.getItems(), response);
+    }
+
 }
