@@ -14,7 +14,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
@@ -67,6 +66,7 @@ public class SecurityConfig {
                         "/swagger-ui/**"
                 ).permitAll()
 
+                .requestMatchers("/api/tariff-definitions/user").hasRole("ADMIN")
                 .requestMatchers("/api/**").authenticated()
                 
                 .anyRequest().authenticated()

@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 @Component
 // this method helps to verify the user based on the jwt token issued by supabase 
@@ -73,8 +72,11 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
                 
                 if (userId != null && email != null && audienceOk && issuerOk) {
 
+                    // Extract role from JWT claims (app_metadata.role from Supabase Admin API)
+                    String userRole = extractRoleFromClaims(claims);
+                    
                     List<SimpleGrantedAuthority> authorities = Collections.singletonList(
-                        new SimpleGrantedAuthority("ROLE_USER")
+                        new SimpleGrantedAuthority(userRole)
                     );
                     
                     UsernamePasswordAuthenticationToken authentication = 
@@ -100,6 +102,33 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
     private SecretKey getSigningKey() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private String extractRoleFromClaims(Claims claims) {
+        // Check app_metadata.role (set by Supabase Admin API)
+        Object appMetadata = claims.get("app_metadata");
+        if (appMetadata instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> appMetadataMap = (java.util.Map<String, Object>) appMetadata;
+            Object role = appMetadataMap.get("role");
+            if (role instanceof String roleStr && roleStr.equalsIgnoreCase("admin")) {
+                return "ROLE_ADMIN";
+            }
+        }
+
+        // Check user_metadata.role (alternative location)
+        Object userMetadata = claims.get("user_metadata");
+        if (userMetadata instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> userMetadataMap = (java.util.Map<String, Object>) userMetadata;
+            Object role = userMetadataMap.get("role");
+            if (role instanceof String roleStr && roleStr.equalsIgnoreCase("admin")) {
+                return "ROLE_ADMIN";
+            }
+        }
+
+        // Default to general user
+        return "ROLE_USER";
     }
     
     public static class SupabaseUserDetails {
