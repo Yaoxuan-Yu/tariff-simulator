@@ -1,12 +1,13 @@
 package com.example.tariff.controller;
 import com.example.tariff.dto.TariffResponse;
-import com.example.tariff.model.SessionHistory;
-import com.example.tariff.model.ExportCart;
 import com.example.tariff.dto.BrandInfo;
+import com.example.tariff.dto.CalculationHistoryDto;
 import com.example.tariff.dto.TariffDefinitionsResponse;
 import com.example.tariff.service.TariffService;
 import com.example.tariff.service.CsvExportService;
 import com.example.tariff.service.ModeManager;
+import com.example.tariff.service.SessionHistoryService;
+import com.example.tariff.service.ExportCartService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
-import java.io.IOException;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,10 +30,17 @@ public class TariffController {
     private final TariffService tariffService;
     private final CsvExportService csvExportService;
     private final ModeManager modeManager;
-    public TariffController(TariffService tariffService, CsvExportService csvExportService, ModeManager modeManager) {
+    private final SessionHistoryService sessionHistoryService;
+    private final ExportCartService exportCartService;
+
+    public TariffController(TariffService tariffService, CsvExportService csvExportService, 
+                          ModeManager modeManager, SessionHistoryService sessionHistoryService,
+                          ExportCartService exportCartService) {
         this.tariffService = tariffService;
         this.csvExportService = csvExportService;
         this.modeManager = modeManager;
+        this.sessionHistoryService = sessionHistoryService;
+        this.exportCartService = exportCartService;
     }
 
     @Operation(summary = "Calculate tariff rates for importing products between countries")
@@ -75,11 +82,13 @@ public class TariffController {
                 throw new com.example.tariff.exception.BadRequestException("Invalid custom cost format");
             }
         }
+
         if (mode != null && mode.equalsIgnoreCase("user")) {
             modeManager.useSimulatorMode();
         } else {
             modeManager.useGlobalMode();
         }
+
         TariffResponse response = modeManager.calculate(
             importingTo,
             exportingFrom,
@@ -89,15 +98,14 @@ public class TariffController {
             customCost
         );
 
-        // Retrieve or initialize user's session history and add current calculation.
-        SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
-        if (sessionHistory == null) {
-            sessionHistory = new SessionHistory();
+        // SAVE TO SESSION HISTORY
+        if (response.isSuccess()) {
+            try {
+                sessionHistoryService.saveCalculation(session, response);
+            } catch (Exception e) {
+                System.err.println("Failed to save calculation to session history: " + e.getMessage());
+            }
         }
-
-        // Add calculation and persist back to session
-        sessionHistory.addCalculation(response);
-        session.setAttribute("tariffHistory", sessionHistory);
 
         return ResponseEntity.ok(response);
     }
@@ -158,99 +166,66 @@ public class TariffController {
         return ResponseEntity.ok(tariffService.addUserTariffDefinition(dto));
     }
 
-    @Operation(summary = "Retrieve all session-based tariff calculations")
+    // ===== SESSION HISTORY ENDPOINTS =====
+
+    @Operation(summary = "Get all calculations from session history")
     @GetMapping("/tariff/history")
-    public ResponseEntity<?> getHistory(HttpSession session) {
-        SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
-
-        if (sessionHistory == null || sessionHistory.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NO_CONTENT).body("No tariff history found for this session.");
+    public ResponseEntity<List<CalculationHistoryDto>> getHistory(HttpSession session) {
+        List<CalculationHistoryDto> history = sessionHistoryService.getAllHistory(session);
+        if (history.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
         }
-
-        return ResponseEntity.ok(sessionHistory.getHistory());
+        return ResponseEntity.ok(history);
     }
 
-    @Operation(summary = "Export tariff calculation results as CSV file (feature yet to be implemented)")
-    @GetMapping("/export")
-    public void exportHistoryAsCSV(
-            HttpSession session,
-            HttpServletResponse response
-    ) throws IOException {
-        SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
-
-        if (sessionHistory == null || sessionHistory.isEmpty()) {
-            response.setStatus(HttpStatus.NO_CONTENT.value());
-            response.getWriter().write("No session history to export");
-            return;
-        }
-
-        csvExportService.exportAsCSV(sessionHistory.getHistory(), response);
-    }    
-    
-
-    @Operation(summary = "Clear the current user's session tariff history")
-    @DeleteMapping("/tariff/history")
+    @Operation(summary = "Clear all calculation history from session")
+    @DeleteMapping("/tariff/history/clear")
     public ResponseEntity<String> clearHistory(HttpSession session) {
-        SessionHistory sessionHistory = (SessionHistory) session.getAttribute("tariffHistory");
-
-        if (sessionHistory != null) {
-            sessionHistory.clear();
-            session.setAttribute("tariffHistory", sessionHistory);
-        }
-
-        return ResponseEntity.ok("Tariff history cleared successfully.");
+        sessionHistoryService.clearHistory(session);
+        return ResponseEntity.ok("All calculations cleared from session");
     }
 
-    @Operation(summary = "Add a tariff calculation to export cart")
-    @PostMapping("/export-cart/add")
-    public ResponseEntity<String> addToExportCart(
-            @RequestBody TariffResponse tariffResponse,
-            HttpSession session
-    ) {
-        ExportCart exportCart = (ExportCart) session.getAttribute("exportCart");
-        if (exportCart == null) {
-            exportCart = new ExportCart();
-        }
-        exportCart.addItem(tariffResponse);
-        session.setAttribute("exportCart", exportCart);
+    // ===== EXPORT CART ENDPOINTS =====
 
-        return ResponseEntity.ok("Calculation added to export cart.");
+    @Operation(summary = "Add calculation to export cart")
+    @PostMapping("/export-cart/add/{calculationId}")
+    public ResponseEntity<String> addToCart(@PathVariable String calculationId, HttpSession session) {
+        exportCartService.addToCart(session, calculationId);
+        return ResponseEntity.ok("Added to export cart");
     }
 
-    @Operation(summary = "View items in the export cart")
+    @Operation(summary = "Remove calculation from export cart")
+    @DeleteMapping("/export-cart/remove/{calculationId}")
+    public ResponseEntity<String> removeFromCart(@PathVariable String calculationId, HttpSession session) {
+        exportCartService.removeFromCart(session, calculationId);
+        return ResponseEntity.ok("Removed from export cart");
+    }
+
+    @Operation(summary = "Get all items in export cart")
     @GetMapping("/export-cart")
-    public ResponseEntity<List<TariffResponse>> viewExportCart(HttpSession session) {
-        ExportCart exportCart = (ExportCart) session.getAttribute("exportCart");
-        if (exportCart == null || exportCart.isEmpty()) {
-            return ResponseEntity.noContent().build();
+    public ResponseEntity<List<CalculationHistoryDto>> getCart(HttpSession session) {
+        List<CalculationHistoryDto> cart = exportCartService.getCart(session);
+        if (cart.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
         }
-        return ResponseEntity.ok(exportCart.getItems());
+        return ResponseEntity.ok(cart);
     }
 
-    @Operation(summary = "Remove an item from the export cart by index")
-    @DeleteMapping("/export-cart/{index}")
-    public ResponseEntity<String> removeFromExportCart(@PathVariable int index, HttpSession session) {
-        ExportCart exportCart = (ExportCart) session.getAttribute("exportCart");
-        if (exportCart == null || exportCart.isEmpty()) {
-            return ResponseEntity.badRequest().body("Export cart is empty.");
-        }
-        exportCart.removeItem(index);
-        session.setAttribute("exportCart", exportCart);
-        return ResponseEntity.ok("Item removed from export cart.");
+    @Operation(summary = "Clear all items from export cart")
+    @DeleteMapping("/export-cart/clear")
+    public ResponseEntity<String> clearCart(HttpSession session) {
+        exportCartService.clearCart(session);
+        return ResponseEntity.ok("Export cart cleared");
     }
 
-    @Operation(summary = "Export all items in the export cart as CSV")
+    @Operation(summary = "Export all items in cart as CSV")
     @GetMapping("/export-cart/export")
-    public void exportCartAsCsv(HttpSession session, HttpServletResponse response) throws IOException {
-        ExportCart exportCart = (ExportCart) session.getAttribute("exportCart");
-
-        if (exportCart == null || exportCart.isEmpty()) {
-            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
-            response.getWriter().write("No items in export cart to export.");
-            return;
+    public void exportCart(HttpSession session, HttpServletResponse response) {
+        List<CalculationHistoryDto> cart = exportCartService.getCart(session);
+        if (cart.isEmpty()) {
+            throw new com.example.tariff.exception.NotFoundException("Export cart is empty");
         }
-
-        csvExportService.exportAsCSV(exportCart.getItems(), response);
+        csvExportService.exportCartAsCSV(cart, response);
     }
 
 }
