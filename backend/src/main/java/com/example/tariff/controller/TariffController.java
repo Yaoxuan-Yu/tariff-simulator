@@ -1,17 +1,25 @@
 package com.example.tariff.controller;
-import com.example.tariff.dto.TariffResponse;
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.tariff.dto.BrandInfo;
 import com.example.tariff.dto.TariffDefinitionsResponse;
-import com.example.tariff.service.TariffService;
+import com.example.tariff.dto.TariffResponse;
 import com.example.tariff.service.CsvExportService;
 import com.example.tariff.service.ModeManager;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletResponse;
-import java.util.List;
+import com.example.tariff.service.TariffService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @Tag(name="Tariffs", description="A summary of all our API endpoints for tariff calculations and related data")
