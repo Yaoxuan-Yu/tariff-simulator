@@ -136,7 +136,7 @@ public class TariffController {
         if (dto == null) {
             throw new com.example.tariff.exception.BadRequestException("Tariff definition data is required");
         }
-        return ResponseEntity.ok(tariffService.addUserTariffDefinition(dto));
+        return ResponseEntity.ok(tariffService.addAdminTariffDefinition(dto));
     }
 
     @Operation(summary = "Update an existing user-defined tariff definition (Admin only)")
@@ -150,7 +150,7 @@ public class TariffController {
         if (id == null || id.trim().isEmpty()) {
             throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
         }
-        return ResponseEntity.ok(tariffService.updateUserTariffDefinition(id, dto));
+        return ResponseEntity.ok(tariffService.updateAdminTariffDefinition(id, dto));
     }
 
     @Operation(summary = "Delete a user-defined tariff definition (Admin only)")
@@ -159,7 +159,7 @@ public class TariffController {
         if (id == null || id.trim().isEmpty()) {
             throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
         }
-        tariffService.deleteUserTariffDefinition(id);
+        tariffService.deleteAdminTariffDefinition(id);
         return ResponseEntity.ok().build();
     }
 
