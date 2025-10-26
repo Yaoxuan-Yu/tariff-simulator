@@ -130,13 +130,37 @@ public class TariffController {
         return ResponseEntity.ok(tariffService.getUserTariffDefinitions());
     }
 
-    @Operation(summary = "Add a new user-defined tariff definition")
+    @Operation(summary = "Add a new user-defined tariff definition (Admin only)")
     @PostMapping("/tariff-definitions/user")
     public ResponseEntity<TariffDefinitionsResponse> addUserTariffDefinition(@RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
         if (dto == null) {
             throw new com.example.tariff.exception.BadRequestException("Tariff definition data is required");
         }
         return ResponseEntity.ok(tariffService.addUserTariffDefinition(dto));
+    }
+
+    @Operation(summary = "Update an existing user-defined tariff definition (Admin only)")
+    @PutMapping("/tariff-definitions/user/{id}")
+    public ResponseEntity<TariffDefinitionsResponse> updateUserTariffDefinition(
+            @PathVariable String id,
+            @RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        if (dto == null) {
+            throw new com.example.tariff.exception.BadRequestException("Tariff definition data is required");
+        }
+        if (id == null || id.trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
+        }
+        return ResponseEntity.ok(tariffService.updateUserTariffDefinition(id, dto));
+    }
+
+    @Operation(summary = "Delete a user-defined tariff definition (Admin only)")
+    @DeleteMapping("/tariff-definitions/user/{id}")
+    public ResponseEntity<?> deleteUserTariffDefinition(@PathVariable String id) {
+        if (id == null || id.trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
+        }
+        tariffService.deleteUserTariffDefinition(id);
+        return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "Export tariff calculation results as CSV file (feature yet to be implemented)")

@@ -286,31 +286,85 @@ public class TariffService {
     public TariffDefinitionsResponse addUserTariffDefinition(TariffDefinitionsResponse.TariffDefinitionDto dto) {
         try {
             // Basic validation
-            if (dto.getProduct() == null || dto.getProduct().trim().isEmpty()) {
-                throw new com.example.tariff.exception.ValidationException("Product is required for user-defined tariff");
-            }
-            if (dto.getExportingFrom() == null || dto.getExportingFrom().trim().isEmpty()) {
-                throw new com.example.tariff.exception.ValidationException("Exporting country is required for user-defined tariff");
-            }
-            if (dto.getImportingTo() == null || dto.getImportingTo().trim().isEmpty()) {
-                throw new com.example.tariff.exception.ValidationException("Importing country is required for user-defined tariff");
-            }
-            if (dto.getType() == null || dto.getType().trim().isEmpty()) {
-                throw new com.example.tariff.exception.ValidationException("Tariff type is required for user-defined tariff");
-            }
-            if (dto.getRate() < 0) {
-                throw new com.example.tariff.exception.ValidationException("Tariff rate cannot be negative");
-            }
+            validateTariffDefinition(dto);
             
             if (dto.getId() == null || dto.getId().trim().isEmpty()) {
                 dto.setId("user-" + System.currentTimeMillis());
             }
+            
+            // Check for duplicates
+            if (userDefinedTariffs.stream().anyMatch(t -> t.getId().equals(dto.getId()))) {
+                throw new com.example.tariff.exception.ValidationException("Tariff definition with this ID already exists");
+            }
+            
             userDefinedTariffs.add(dto);
             return new TariffDefinitionsResponse(true, List.of(dto));
         } catch (com.example.tariff.exception.ValidationException e) {
             throw e; // Re-throw validation exceptions
         } catch (Exception e) {
             throw new com.example.tariff.exception.DataAccessException("Failed to add user-defined tariff", e);
+        }
+    }
+
+    public TariffDefinitionsResponse updateUserTariffDefinition(String id, TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        try {
+            // Basic validation
+            validateTariffDefinition(dto);
+            
+            // Find and update the tariff definition
+            TariffDefinitionsResponse.TariffDefinitionDto existing = userDefinedTariffs.stream()
+                .filter(t -> t.getId().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new com.example.tariff.exception.NotFoundException("Tariff definition not found with ID: " + id));
+            
+            // Update the fields
+            existing.setProduct(dto.getProduct());
+            existing.setExportingFrom(dto.getExportingFrom());
+            existing.setImportingTo(dto.getImportingTo());
+            existing.setType(dto.getType());
+            existing.setRate(dto.getRate());
+            existing.setEffectiveDate(dto.getEffectiveDate());
+            existing.setExpirationDate(dto.getExpirationDate());
+            
+            return new TariffDefinitionsResponse(true, List.of(existing));
+        } catch (com.example.tariff.exception.ValidationException | com.example.tariff.exception.NotFoundException e) {
+            throw e; // Re-throw validation and not found exceptions
+        } catch (Exception e) {
+            throw new com.example.tariff.exception.DataAccessException("Failed to update user-defined tariff", e);
+        }
+    }
+
+    public void deleteUserTariffDefinition(String id) {
+        try {
+            boolean removed = userDefinedTariffs.removeIf(t -> t.getId().equals(id));
+            if (!removed) {
+                throw new com.example.tariff.exception.NotFoundException("Tariff definition not found with ID: " + id);
+            }
+        } catch (com.example.tariff.exception.NotFoundException e) {
+            throw e; // Re-throw not found exceptions
+        } catch (Exception e) {
+            throw new com.example.tariff.exception.DataAccessException("Failed to delete user-defined tariff", e);
+        }
+    }
+
+    private void validateTariffDefinition(TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        if (dto.getProduct() == null || dto.getProduct().trim().isEmpty()) {
+            throw new com.example.tariff.exception.ValidationException("Product is required for user-defined tariff");
+        }
+        if (dto.getExportingFrom() == null || dto.getExportingFrom().trim().isEmpty()) {
+            throw new com.example.tariff.exception.ValidationException("Exporting country is required for user-defined tariff");
+        }
+        if (dto.getImportingTo() == null || dto.getImportingTo().trim().isEmpty()) {
+            throw new com.example.tariff.exception.ValidationException("Importing country is required for user-defined tariff");
+        }
+        if (dto.getType() == null || dto.getType().trim().isEmpty()) {
+            throw new com.example.tariff.exception.ValidationException("Tariff type is required for user-defined tariff");
+        }
+        if (!dto.getType().equals("AHS") && !dto.getType().equals("MFN")) {
+            throw new com.example.tariff.exception.ValidationException("Tariff type must be either 'AHS' or 'MFN'");
+        }
+        if (dto.getRate() < 0) {
+            throw new com.example.tariff.exception.ValidationException("Tariff rate cannot be negative");
         }
     }
 }

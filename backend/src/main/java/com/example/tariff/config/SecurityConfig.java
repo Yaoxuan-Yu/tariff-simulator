@@ -66,7 +66,7 @@ public class SecurityConfig {
                         "/swagger-ui/**"
                 ).permitAll()
 
-                .requestMatchers("/api/tariff-definitions/user").hasRole("ADMIN")
+                .requestMatchers("/api/tariff-definitions/user/**").hasRole("ADMIN")
                 .requestMatchers("/api/**").authenticated()
                 
                 .anyRequest().authenticated()
