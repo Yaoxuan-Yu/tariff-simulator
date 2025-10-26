@@ -1,26 +1,39 @@
 package com.example.tariff.service;
-import com.example.tariff.dto.TariffResponse;
-import com.example.tariff.dto.BrandInfo;
-import com.example.tariff.dto.TariffDefinitionsResponse;
-import com.example.tariff.entity.Product;
-import com.example.tariff.entity.Tariff;
-import com.example.tariff.repository.ProductRepository;
-import com.example.tariff.repository.TariffRepository;
-import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.tariff.dto.BrandInfo;
+import com.example.tariff.dto.TariffDefinitionsResponse;
+import com.example.tariff.dto.TariffRateDto;
+import com.example.tariff.dto.TariffResponse;
+import com.example.tariff.entity.Product;
+import com.example.tariff.entity.Tariff;
+import com.example.tariff.entity.TariffId;
+import com.example.tariff.repository.ProductRepository;
+import com.example.tariff.repository.TariffRepository;
+import com.example.tariff.service.api.WitsApiService;
+
 
 // has main business logic including tariff calculations, data retrieval and fta logic (ahs vs mhn)
 @Service
 public class TariffService {
     private final TariffRepository tariffRepository;
     private final ProductRepository productRepository;
+    private final WitsApiService witsApiService;
     private final List<TariffDefinitionsResponse.TariffDefinitionDto> userDefinedTariffs = new ArrayList<>();
-    public TariffService(TariffRepository tariffRepository, ProductRepository productRepository) {
+    public TariffService(TariffRepository tariffRepository, ProductRepository productRepository, WitsApiService witsApiService) {
         this.tariffRepository = tariffRepository;
         this.productRepository = productRepository;
+        this.witsApiService = witsApiService;
+
     }
 
     public TariffResponse calculateWithMode(
@@ -313,5 +326,70 @@ public class TariffService {
             throw new com.example.tariff.exception.DataAccessException("Failed to add user-defined tariff", e);
         }
     }
+
+
+    // api
+    private static final Map<String, String> COUNTRY_CODE_MAP = Map.of(
+            "036", "Australia",
+            "156", "China",
+            "356", "India",
+            "360", "Indonesia",
+            "392", "Japan",
+            "458", "Philippines",
+            "608", "Malaysia",
+            "702", "Singapore",
+            "704", "Vietnam",
+            "840", "United States"
+    );
+
+    // 你已有的异步API调用方法（仅新增数据库更新逻辑）
+    @Async("tariffApiExecutor")
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void updateTariffsAsync(String reporterCode, String partnerCode, String hsCode) {
+        String reporterName = COUNTRY_CODE_MAP.getOrDefault(reporterCode, reporterCode);
+        String partnerName = COUNTRY_CODE_MAP.getOrDefault(partnerCode, partnerCode);
+
+        try {
+            // 你已有的逻辑：调用API获取最新税率数据（保留不变）
+            List<TariffRateDto> latestTariffs = witsApiService.fetchTariffs(reporterCode, partnerCode, hsCode);
+            if (!latestTariffs.isEmpty()) {
+                TariffRateDto latestTariff = latestTariffs.get(0);
+                // 你已有的日志打印（保留不变）
+                System.out.printf("[Updated] Reporter=%s, Partner=%s, HS Code=%s | AHS=%.2f%% | MFN=%.2f%%%n",
+                        reporterName, partnerName, hsCode,
+                        latestTariff.getAhsWeighted(),
+                        latestTariff.getMfnWeighted());
+
+                // ================= 新增：数据库更新逻辑（核心缺口）=================
+                // 1. 构建Tariff实体类（适配Superbase的Tariff Rates (Test)表）
+                Tariff tariff = new Tariff();
+                tariff.setCountry(reporterName); // 数据库存国家名（如Japan），不是代码（392）
+                tariff.setPartner(partnerName); // 数据库存伙伴国名（如Australia），不是代码（036）
+                tariff.setAhsWeighted(latestTariff.getAhsWeighted()); // 最新AHS税率
+                tariff.setMfnWeighted(latestTariff.getMfnWeighted()); // 最新MFN税率
+
+                // 2. 按复合主键（country+partner）查询：存在则更新，不存在则新增
+                TariffId tariffId = new TariffId(reporterName, partnerName);
+                tariffRepository.findById(tariffId)
+                        .ifPresentOrElse(
+                                // 已存在：更新税率字段
+                                existingTariff -> {
+                                    existingTariff.setAhsWeighted(tariff.getAhsWeighted());
+                                    existingTariff.setMfnWeighted(tariff.getMfnWeighted());
+                                    tariffRepository.save(existingTariff);
+                                },
+                                // 不存在：新增记录
+                                () -> tariffRepository.save(tariff)
+                        );
+                // ==============================================================
+            }
+        } catch (Exception e) {
+            // 你已有的异常处理（保留不变）
+            String errorMsg = e.getMessage() != null ? e.getMessage().substring(0, 80) : "Unknown error";
+            System.err.printf("[Error] Reporter=%s, Partner=%s, HS Code=%s: %s%n",
+                    reporterName, partnerName, hsCode, errorMsg);
+        }
+    }
+
 }
 
