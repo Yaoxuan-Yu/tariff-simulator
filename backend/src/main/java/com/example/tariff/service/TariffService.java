@@ -21,6 +21,8 @@ import com.example.tariff.repository.ProductRepository;
 import com.example.tariff.repository.TariffRepository;
 import com.example.tariff.service.api.WitsApiService;
 
+import org.springframework.stereotype.Service;
+import java.util.Optional;
 
 // has main business logic including tariff calculations, data retrieval and fta logic (ahs vs mhn)
 @Service
@@ -35,6 +37,7 @@ public class TariffService {
         this.witsApiService = witsApiService;
 
     }
+
 
     public TariffResponse calculateWithMode(
         String productName,
@@ -296,35 +299,167 @@ public class TariffService {
         return new TariffDefinitionsResponse(true, new ArrayList<>(userDefinedTariffs));
     }
 
-    public TariffDefinitionsResponse addUserTariffDefinition(TariffDefinitionsResponse.TariffDefinitionDto dto) {
+    // Admin CRUD: Save to database (for admins only)
+    public TariffDefinitionsResponse addAdminTariffDefinition(TariffDefinitionsResponse.TariffDefinitionDto dto) {
         try {
             // Basic validation
-            if (dto.getProduct() == null || dto.getProduct().trim().isEmpty()) {
-                throw new com.example.tariff.exception.ValidationException("Product is required for user-defined tariff");
-            }
-            if (dto.getExportingFrom() == null || dto.getExportingFrom().trim().isEmpty()) {
-                throw new com.example.tariff.exception.ValidationException("Exporting country is required for user-defined tariff");
-            }
-            if (dto.getImportingTo() == null || dto.getImportingTo().trim().isEmpty()) {
-                throw new com.example.tariff.exception.ValidationException("Importing country is required for user-defined tariff");
-            }
-            if (dto.getType() == null || dto.getType().trim().isEmpty()) {
-                throw new com.example.tariff.exception.ValidationException("Tariff type is required for user-defined tariff");
-            }
-            if (dto.getRate() < 0) {
-                throw new com.example.tariff.exception.ValidationException("Tariff rate cannot be negative");
+            validateTariffDefinition(dto);
+            
+            // Check for existing tariff in database
+            String importingTo = dto.getImportingTo();
+            String exportingFrom = dto.getExportingFrom();
+            
+            Optional<Tariff> existingTariff = tariffRepository.findByCountryAndPartner(importingTo, exportingFrom);
+            
+            Tariff tariff;
+            if (existingTariff.isPresent()) {
+                // Update existing tariff
+                tariff = existingTariff.get();
+            } else {
+                // Create new tariff
+                tariff = new Tariff();
+                tariff.setCountry(importingTo);
+                tariff.setPartner(exportingFrom);
             }
             
-            if (dto.getId() == null || dto.getId().trim().isEmpty()) {
-                dto.setId("user-" + System.currentTimeMillis());
+            // Set the rates based on type
+            if ("AHS".equals(dto.getType())) {
+                tariff.setAhsWeighted(dto.getRate());
+                // Keep MFN rate if it exists, otherwise set to AHS rate
+                if (tariff.getMfnWeighted() == null) {
+                    tariff.setMfnWeighted(dto.getRate());
+                }
+            } else if ("MFN".equals(dto.getType())) {
+                tariff.setMfnWeighted(dto.getRate());
+                // Keep AHS rate if it exists, otherwise set to MFN rate
+                if (tariff.getAhsWeighted() == null) {
+                    tariff.setAhsWeighted(dto.getRate());
+                }
             }
-            userDefinedTariffs.add(dto);
-            return new TariffDefinitionsResponse(true, List.of(dto));
+            
+            // Save to database
+            tariffRepository.save(tariff);
+            
+            // Return the saved tariff as DTO
+            TariffDefinitionsResponse.TariffDefinitionDto responseDto = 
+                convertToDto(tariff, dto.getProduct(), dto.getEffectiveDate(), dto.getExpirationDate(), dto.getType());
+            
+            return new TariffDefinitionsResponse(true, List.of(responseDto));
         } catch (com.example.tariff.exception.ValidationException e) {
             throw e; // Re-throw validation exceptions
         } catch (Exception e) {
-            throw new com.example.tariff.exception.DataAccessException("Failed to add user-defined tariff", e);
+            throw new com.example.tariff.exception.DataAccessException("Failed to add admin-defined tariff", e);
         }
+    }
+
+    public TariffDefinitionsResponse updateAdminTariffDefinition(String id, TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        try {
+            // Basic validation
+            validateTariffDefinition(dto);
+            
+            // Parse the ID to get country and partner (format: country_partner)
+            String[] parts = id.split("_");
+            if (parts.length != 2) {
+                throw new com.example.tariff.exception.ValidationException("Invalid tariff ID format");
+            }
+            
+            String importingTo = parts[0];
+            String exportingFrom = parts[1];
+            
+            Optional<Tariff> tariffOptional = tariffRepository.findByCountryAndPartner(importingTo, exportingFrom);
+            
+            if (!tariffOptional.isPresent()) {
+                throw new com.example.tariff.exception.NotFoundException("Tariff definition not found for country: " + importingTo + ", partner: " + exportingFrom);
+            }
+            
+            Tariff tariff = tariffOptional.get();
+            
+            // Update the rates based on type
+            if ("AHS".equals(dto.getType())) {
+                tariff.setAhsWeighted(dto.getRate());
+            } else if ("MFN".equals(dto.getType())) {
+                tariff.setMfnWeighted(dto.getRate());
+            }
+            
+            // Save to database
+            tariffRepository.save(tariff);
+            
+            // Return the updated tariff as DTO
+            TariffDefinitionsResponse.TariffDefinitionDto responseDto = 
+                convertToDto(tariff, dto.getProduct(), dto.getEffectiveDate(), dto.getExpirationDate(), dto.getType());
+            
+            return new TariffDefinitionsResponse(true, List.of(responseDto));
+        } catch (com.example.tariff.exception.ValidationException | com.example.tariff.exception.NotFoundException e) {
+            throw e; // Re-throw validation and not found exceptions
+        } catch (Exception e) {
+            throw new com.example.tariff.exception.DataAccessException("Failed to update admin-defined tariff", e);
+        }
+    }
+
+    public void deleteAdminTariffDefinition(String id) {
+        try {
+            // Parse the ID to get country and partner
+            String[] parts = id.split("_");
+            if (parts.length != 2) {
+                throw new com.example.tariff.exception.ValidationException("Invalid tariff ID format");
+            }
+            
+            String importingTo = parts[0];
+            String exportingFrom = parts[1];
+            
+            Optional<Tariff> tariffOptional = tariffRepository.findByCountryAndPartner(importingTo, exportingFrom);
+            
+            if (!tariffOptional.isPresent()) {
+                throw new com.example.tariff.exception.NotFoundException("Tariff definition not found for country: " + importingTo + ", partner: " + exportingFrom);
+            }
+            
+            // Delete from database
+            tariffRepository.delete(tariffOptional.get());
+        } catch (com.example.tariff.exception.ValidationException | com.example.tariff.exception.NotFoundException e) {
+            throw e; // Re-throw not found exceptions
+        } catch (Exception e) {
+            throw new com.example.tariff.exception.DataAccessException("Failed to delete admin-defined tariff", e);
+        }
+    }
+
+    private void validateTariffDefinition(TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        if (dto.getImportingTo() == null || dto.getImportingTo().trim().isEmpty()) {
+            throw new com.example.tariff.exception.ValidationException("Importing country is required");
+        }
+        if (dto.getExportingFrom() == null || dto.getExportingFrom().trim().isEmpty()) {
+            throw new com.example.tariff.exception.ValidationException("Exporting country is required");
+        }
+        if (dto.getType() == null || dto.getType().trim().isEmpty()) {
+            throw new com.example.tariff.exception.ValidationException("Tariff type is required");
+        }
+        if (!dto.getType().equals("AHS") && !dto.getType().equals("MFN")) {
+            throw new com.example.tariff.exception.ValidationException("Tariff type must be either 'AHS' or 'MFN'");
+        }
+        if (dto.getRate() < 0) {
+            throw new com.example.tariff.exception.ValidationException("Tariff rate cannot be negative");
+        }
+    }
+
+    private TariffDefinitionsResponse.TariffDefinitionDto convertToDto(
+        Tariff tariff, 
+        String product, 
+        String effectiveDate, 
+        String expirationDate,
+        String type
+    ) {
+        String id = tariff.getCountry() + "_" + tariff.getPartner();
+        double rate = "AHS".equals(type) ? tariff.getAhsWeighted() : tariff.getMfnWeighted();
+        
+        return new TariffDefinitionsResponse.TariffDefinitionDto(
+            id,
+            product,
+            tariff.getPartner(),
+            tariff.getCountry(),
+            type,
+            rate,
+            effectiveDate != null ? effectiveDate : "N/A",
+            expirationDate != null ? expirationDate : "Ongoing"
+        );
     }
 
 

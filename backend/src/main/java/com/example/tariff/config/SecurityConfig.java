@@ -66,6 +66,8 @@ public class SecurityConfig {
                         "/swagger-ui/**"
                 ).permitAll()
 
+                .requestMatchers("/api/tariff-definitions/user/**").hasRole("ADMIN")
+
                 // for api
                 .requestMatchers("/admin/test-update-tariffs").permitAll()
                 

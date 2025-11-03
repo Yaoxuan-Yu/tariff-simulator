@@ -14,6 +14,16 @@ public class GlobalMode implements TariffMode{
 
     @Override
     public TariffResponse calculate(String importCountry, String exportCountry, String product, String brand, double quantity, String customCost) {
-        return tariffService.calculate(product, brand, exportCountry, importCountry, quantity, customCost);
+        // Global mode uses database tariffs
+        return tariffService.calculateWithMode(
+            product,
+            brand,
+            exportCountry,
+            importCountry,
+            quantity,
+            customCost,
+            "global",
+            null
+        );
     }
 }
