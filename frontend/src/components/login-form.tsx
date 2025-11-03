@@ -7,15 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-interface SignupFormProps {
-  onSignup: (user: any) => void
-  onSwitchToLogin: () => void
+interface LoginFormProps {
+  onLogin: (user: any) => void
+  onSwitchToSignup: () => void
 }
 
-export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
+export function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
   const [message, setMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -24,37 +23,22 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
     setMessage("")
     setIsLoading(true)
 
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setMessage("Passwords do not match")
-      setIsLoading(false)
-      return
-    }
-
-    // Validate password length
-    if (password.length < 6) {
-      setMessage("Password must be at least 6 characters long")
-      setIsLoading(false)
-      return
-    }
-
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       })
 
       if (error) {
         setMessage(error.message)
+        setEmail("")
+        setPassword("")
         return
       }
 
       if (data?.user) {
-        setMessage("Account created successfully! Please check your email to verify your account.")
-        // Don't automatically log in - user needs to verify email first
-        setTimeout(() => {
-          onSwitchToLogin()
-        }, 5000)
+        onLogin(data.user)
+        return
       }
     } catch (err) {
       setMessage("An unexpected error occurred")
@@ -90,11 +74,11 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-slate-900">TariffWise</CardTitle>
-          <CardDescription>Create your account</CardDescription>
+          <CardDescription>Welcome back!</CardDescription>
         </CardHeader>
         <CardContent>
           {message && (
-            <Alert variant={message.includes("successfully") ? "default" : "destructive"} className="mb-4">
+            <Alert variant="destructive" className="mb-4">
               <AlertDescription>{message}</AlertDescription>
             </Alert>
           )}
@@ -110,7 +94,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
               alt="Google" 
               className="w-5 h-5 mr-2" 
             />
-            Sign up with Google
+            Sign in with Google
           </Button>
 
           <div className="relative mb-4">
@@ -153,37 +137,22 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
               />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
-                Confirm Password
-              </label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your password"
-                required
-                className="w-full"
-              />
-            </div>
-
             <Button 
               type="submit" 
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" 
               disabled={isLoading}
             >
-              {isLoading ? "Creating account..." : "Sign Up"}
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
           <div className="mt-4 text-center text-sm text-slate-600">
-            <span>Already have an account? </span>
+            <span>Don't have an account? </span>
             <button 
-              onClick={onSwitchToLogin}
+              onClick={onSwitchToSignup}
               className="text-accent hover:text-accent/90 font-medium"
             >
-              Sign in
+              Sign up
             </button>
           </div>
         </CardContent>

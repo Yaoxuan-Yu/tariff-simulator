@@ -20,7 +20,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
   const handleExportCSV = async () => {
     try {
       setExportError("")
-      // TODO: Replace with actual backend API call for CSV export
+      
       console.log("Export CSV requested for results:", results)
       alert("CSV export functionality will be handled by the backend")
     } catch (error) {

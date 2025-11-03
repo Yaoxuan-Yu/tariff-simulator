@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -9,11 +9,11 @@ import supabase from "@/lib/supabaseClient"
 
 interface TariffCalculatorFormProps {
   onCalculationComplete: (results: any) => void
+  tariffSource: "global" | "user"
 }
-export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculatorFormProps) {
+
+export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: TariffCalculatorFormProps) {
   const [formData, setFormData] = useState({
-    tariffSource: "global", // Added tariff source selection
-    userTariffId: "",
     product: "",
     brand: "",
     exportingFrom: "",
@@ -28,11 +28,11 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
   const [products, setProducts] = useState<string[]>([])
   const [countries, setCountries] = useState<string[]>([])
   const [userTariffs, setUserTariffs] = useState<any[]>([])
-  // Load initial data from backend API
-  React.useEffect(() => {
+
+  // Load initial data based on tariff source
+  useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // Get Supabase JWT token for all API endpoints
         const { data: { session } } = await supabase.auth.getSession()
         const token = session?.access_token
         const authHeaders = {
@@ -40,30 +40,65 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
           'Content-Type': 'application/json'
         }
 
-        // Get products from backend API
-        const productsResponse = await fetch('http://localhost:8080/api/products', { headers: authHeaders })
-        const productsData = await productsResponse.json()
-        setProducts(productsData)
-        
-        // Get countries from backend API
-        const countriesResponse = await fetch('http://localhost:8080/api/countries', { headers: authHeaders })
-        const countriesData = await countriesResponse.json()
-        setCountries(countriesData)
+        if (tariffSource === "global") {
+          // Load global products and countries
+          const productsResponse = await fetch('http://localhost:8080/api/products', { headers: authHeaders })
+          const productsData = await productsResponse.json()
+          setProducts(Array.isArray(productsData) ? productsData : [])
+          
+          const countriesResponse = await fetch('http://localhost:8080/api/countries', { headers: authHeaders })
+          const countriesData = await countriesResponse.json()
+          setCountries(Array.isArray(countriesData) ? countriesData : [])
+        } else {
+          // Load user-defined tariffs
+          const res = await fetch('http://localhost:8080/api/tariff-definitions/user', { headers: authHeaders })
+          const data = await res.json()
+          if (data.success && Array.isArray(data.data)) {
+            setUserTariffs(data.data)
+            // Extract unique products and countries from user tariffs
+            const uniqueProducts = Array.from(new Set(data.data.map((t: any) => t.product).filter(Boolean)))
+            const uniqueCountries = Array.from(new Set([
+              ...data.data.map((t: any) => t.exportingFrom).filter(Boolean),
+              ...data.data.map((t: any) => t.importingTo).filter(Boolean)
+            ]))
+            setProducts(uniqueProducts as string[])
+            setCountries(uniqueCountries as string[])
+          } else {
+            setUserTariffs([])
+            setProducts([])
+            setCountries([])
+          }
+        }
       } catch (error) {
-        console.error('Error loading initial data from backend:', error)
+        console.error('Error loading initial data:', error)
         setProducts([])
         setCountries([])
+        setUserTariffs([])
       }
     }
+    
+    // Reset form when tariff source changes
+    setFormData({
+      product: "",
+      brand: "",
+      exportingFrom: "",
+      importingTo: "",
+      quantity: "1",
+      customCost: "",
+      calculationDate: new Date().toISOString().split("T")[0],
+    })
+    setAvailableBrands([])
+    
     loadInitialData()
-  }, [])
+  }, [tariffSource])
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     setError("")
+
     if (field === "product") {
       const loadBrands = async () => {
         try {
-          // Get Supabase JWT token for API endpoint
           const { data: { session } } = await supabase.auth.getSession()
           const token = session?.access_token
           const authHeaders = {
@@ -71,55 +106,30 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
             'Content-Type': 'application/json'
           }
 
-          // Get brands from backend API
           const response = await fetch(`http://localhost:8080/api/brands?product=${encodeURIComponent(value)}`, { headers: authHeaders })
           const brandsData = await response.json()
-          setAvailableBrands(brandsData)
-          // If there's only one brand for the selected product, auto-select it
+          setAvailableBrands(Array.isArray(brandsData) ? brandsData : [])
+          
+          // Auto-select if only one brand available
           if (Array.isArray(brandsData) && brandsData.length === 1 && brandsData[0]?.brand) {
             setFormData((prev) => ({ ...prev, brand: brandsData[0].brand }))
           }
         } catch (error) {
-          console.error('Error loading brands from backend:', error)
+          console.error('Error loading brands:', error)
           setAvailableBrands([])
         }
       }
       loadBrands()
-      setFormData((prev) => ({ ...prev, brand: "" })) // Reset brand selection
-    }
-    if (field === "tariffSource") {
-      if (value === "user") {
-        const loadUserTariffs = async () => {
-          try {
-            // Get Supabase JWT token for API endpoint
-            const { data: { session } } = await supabase.auth.getSession()
-            const token = session?.access_token
-            const authHeaders = {
-              'Authorization': token ? `Bearer ${token}` : '',
-              'Content-Type': 'application/json'
-            }
-
-            const res = await fetch('http://localhost:8080/api/tariff-definitions/user', { headers: authHeaders })
-            const data = await res.json()
-            if (data.success && data.data) {
-              setUserTariffs(data.data)
-            } else {
-              setUserTariffs([])
-            }
-          } catch (e) {
-            setUserTariffs([])
-          }
-        }
-        loadUserTariffs()
-      }
+      setFormData((prev) => ({ ...prev, brand: "" }))
     }
   }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
+
     if (
-      !formData.tariffSource ||
       !formData.product ||
       !formData.brand ||
       !formData.exportingFrom ||
@@ -130,14 +140,14 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
       setIsLoading(false)
       return
     }
-    // No explicit userTariffId needed; backend will choose matching user-defined definition
+
     if (Number.parseFloat(formData.quantity) <= 0) {
       setError("Quantity must be greater than 0")
       setIsLoading(false)
       return
     }
+
     try {
-      // Call backend API for calculation
       const params = new URLSearchParams({
         product: formData.product,
         brand: formData.brand,
@@ -145,10 +155,9 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
         importingTo: formData.importingTo,
         quantity: formData.quantity,
         ...(formData.customCost && { customCost: formData.customCost }),
-        ...(formData.tariffSource === "user" ? { mode: "user" } : {})
+        ...(tariffSource === "user" ? { mode: "user" } : {})
       })
       
-      // Get Supabase JWT token
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
 
@@ -161,26 +170,74 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
       const result = await response.json()
       
       if (result.success && result.data) {
-        // Debug: Log the response to see the structure
-        console.log('Backend response:', result)
-        console.log('Data object:', result.data)
-        // Pass the data object to the results table
         onCalculationComplete(result.data)
       } else {
         setError(result.error || "Calculation failed")
       }
     } catch (err) {
-      console.log("Calculation error:", err) // Debug log
+      console.error("Calculation error:", err)
       setError("An unexpected error occurred during calculation")
     } finally {
       setIsLoading(false)
     }
   }
+
+  // Get filtered lists based on tariff source with safety checks
+  const getFilteredProducts = (): string[] => {
+    if (tariffSource === "user") {
+      if (!Array.isArray(userTariffs) || userTariffs.length === 0) return []
+      const uniqueProducts = Array.from(
+        new Set(
+          userTariffs
+            .map((t: any) => t?.product)
+            .filter((p): p is string => Boolean(p))
+        )
+      )
+      return uniqueProducts
+    }
+    return Array.isArray(products) ? products : []
+  }
+
+  const getFilteredExportingCountries = (): string[] => {
+    if (tariffSource === "user") {
+      if (!Array.isArray(userTariffs) || userTariffs.length === 0) return []
+      const filtered = userTariffs
+        .filter((t: any) => t && (!formData.product || t.product === formData.product))
+        .map((t: any) => t?.exportingFrom)
+        .filter((c): c is string => Boolean(c))
+      return Array.from(new Set(filtered))
+    }
+    return Array.isArray(countries) ? countries : []
+  }
+
+  const getFilteredImportingCountries = (): string[] => {
+    if (tariffSource === "user") {
+      if (!Array.isArray(userTariffs) || userTariffs.length === 0) return []
+      const filtered = userTariffs
+        .filter(
+          (t: any) =>
+            t &&
+            (!formData.product || t.product === formData.product) &&
+            (!formData.exportingFrom || t.exportingFrom === formData.exportingFrom)
+        )
+        .map((t: any) => t?.importingTo)
+        .filter((c): c is string => Boolean(c))
+      return Array.from(new Set(filtered))
+    }
+    return Array.isArray(countries) ? countries : []
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl font-semibold text-foreground">Cost Calculator</CardTitle>
-        <CardDescription>Calculate the total import cost for a product.</CardDescription>
+        <CardTitle className="text-xl font-semibold text-foreground">
+          {tariffSource === "global" ? "Global Tariff Calculator" : "Simulator Calculator"}
+        </CardTitle>
+        <CardDescription>
+          {tariffSource === "global"
+            ? "Calculate costs using official global tariffs."
+            : "Calculate costs using your simulated tariffs."}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -189,21 +246,6 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">Tariff Source</label>
-            <Select value={formData.tariffSource} onValueChange={(value) => handleInputChange("tariffSource", value)}>
-              <SelectTrigger className="w-full h-10">
-                <SelectValue placeholder="Select tariff source" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="global">Global Tariffs</SelectItem>
-                <SelectItem value="user">User Defined Tariffs</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Removed separate user-defined tariff dropdown per user request */}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -213,12 +255,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                   <SelectValue placeholder="Select a product" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(formData.tariffSource === "user"
-                    ? Array.from(new Set(
-                        userTariffs.map((t: any) => t.product)
-                      ))
-                    : products
-                  ).map((product: string) => (
+                  {getFilteredProducts().map((product) => (
                     <SelectItem key={product} value={product}>
                       {product}
                     </SelectItem>
@@ -226,6 +263,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Brand</label>
               <Select
@@ -246,6 +284,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               </Select>
             </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Exporting From</label>
@@ -257,14 +296,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(formData.tariffSource === "user"
-                    ? Array.from(new Set(
-                        userTariffs
-                          .filter((t: any) => !formData.product || t.product === formData.product)
-                          .map((t: any) => t.exportingFrom)
-                      ))
-                    : countries
-                  ).map((country: string) => (
+                  {getFilteredExportingCountries().map((country) => (
                     <SelectItem key={country} value={country}>
                       {country}
                     </SelectItem>
@@ -272,6 +304,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Importing To</label>
               <Select value={formData.importingTo} onValueChange={(value) => handleInputChange("importingTo", value)}>
@@ -279,18 +312,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(formData.tariffSource === "user"
-                    ? Array.from(new Set(
-                        userTariffs
-                          .filter(
-                            (t: any) =>
-                              (!formData.product || t.product === formData.product) &&
-                              (!formData.exportingFrom || t.exportingFrom === formData.exportingFrom)
-                          )
-                          .map((t: any) => t.importingTo)
-                      ))
-                    : countries
-                  ).map((country: string) => (
+                  {getFilteredImportingCountries().map((country) => (
                     <SelectItem key={country} value={country}>
                       {country}
                     </SelectItem>
@@ -299,6 +321,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               </Select>
             </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">
@@ -317,6 +340,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 step="0.01"
               />
             </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Custom Cost (USD)</label>
               <Input
@@ -328,6 +352,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
                 step="0.01"
               />
             </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Calculation Date</label>
               <Input
@@ -337,6 +362,7 @@ export function TariffCalculatorForm({ onCalculationComplete }: TariffCalculator
               />
             </div>
           </div>
+
           <Button
             type="submit"
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
