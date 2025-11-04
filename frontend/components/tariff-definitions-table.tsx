@@ -89,7 +89,10 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
 
         if (!simulatorMode) {
           // Load global tariffs
-          const globalRes = await fetch("http://localhost:8080/api/tariff-definitions/global", { headers: authHeaders })
+          const globalRes = await fetch("http://localhost:8080/api/tariff-definitions/global", { 
+            headers: authHeaders,
+            credentials: 'include'
+          })
           if (!globalRes.ok) throw new Error(`Global defs failed ${globalRes.status}`)
           const globalData: TariffDefinitionsResponse = await globalRes.json()
           
@@ -99,7 +102,10 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
 
           // Load modified global tariffs for admins
           if (userRole === "admin") {
-            const modifiedRes = await fetch("http://localhost:8080/api/tariff-definitions/modified", { headers: authHeaders })
+            const modifiedRes = await fetch("http://localhost:8080/api/tariff-definitions/modified", { 
+              headers: authHeaders,
+              credentials: 'include'
+            })
             if (modifiedRes.ok) {
               const modifiedData: TariffDefinitionsResponse = await modifiedRes.json()
               if (modifiedData.success && modifiedData.data) {
@@ -111,7 +117,10 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
 
         if (simulatorMode) {
           // Load user-defined tariffs for simulator mode
-          const userRes = await fetch("http://localhost:8080/api/tariff-definitions/user", { headers: authHeaders })
+          const userRes = await fetch("http://localhost:8080/api/tariff-definitions/user", { 
+            headers: authHeaders,
+            credentials: 'include'
+          })
           if (!userRes.ok) throw new Error(`User defs failed ${userRes.status}`)
           const userData: TariffDefinitionsResponse = await userRes.json()
           
@@ -122,8 +131,14 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
 
         // Load countries and products
         const [countriesRes, productsRes] = await Promise.all([
-          fetch("http://localhost:8080/api/countries", { headers: authHeaders }),
-          fetch("http://localhost:8080/api/products", { headers: authHeaders }),
+          fetch("http://localhost:8080/api/countries", { 
+            headers: authHeaders,
+            credentials: 'include'
+          }),
+          fetch("http://localhost:8080/api/products", { 
+            headers: authHeaders,
+            credentials: 'include'
+          }),
         ])
 
         if (!countriesRes.ok) throw new Error(`Countries failed ${countriesRes.status}`)
@@ -200,6 +215,7 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
           "Content-Type": "application/json",
           'Authorization': token ? `Bearer ${token}` : ''
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       })
 
@@ -211,7 +227,20 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
       }
 
       if (simulatorMode) {
-        setUserTariffs((prev) => [...prev, ...response.data!])
+        // Reload tariffs from backend to ensure we have all of them
+        const userRes = await fetch("http://localhost:8080/api/tariff-definitions/user", {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        })
+        if (userRes.ok) {
+          const userData: TariffDefinitionsResponse = await userRes.json()
+          if (userData.success && userData.data) {
+            setUserTariffs(userData.data)
+          }
+        }
         showAlert("Success", "Simulated tariff has been successfully added.")
       } else if (userRole === "admin") {
         setModifiedGlobalTariffs((prev) => [...prev, ...response.data!])
@@ -262,16 +291,43 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       })
 
       if (!res.ok) throw new Error(`Delete failed ${res.status}`)
 
       if (isModifiedGlobal) {
-        setModifiedGlobalTariffs((prev) => prev.filter(t => t.id !== id))
+        // Reload modified tariffs from backend
+        const modifiedRes = await fetch("http://localhost:8080/api/tariff-definitions/modified", {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        })
+        if (modifiedRes.ok) {
+          const modifiedData: TariffDefinitionsResponse = await modifiedRes.json()
+          if (modifiedData.success && modifiedData.data) {
+            setModifiedGlobalTariffs(modifiedData.data)
+          }
+        }
         showAlert("Deleted", "Modified global tariff has been successfully deleted.")
       } else {
-        setUserTariffs((prev) => prev.filter(t => t.id !== id))
+        // Reload user tariffs from backend
+        const userRes = await fetch("http://localhost:8080/api/tariff-definitions/user", {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        })
+        if (userRes.ok) {
+          const userData: TariffDefinitionsResponse = await userRes.json()
+          if (userData.success && userData.data) {
+            setUserTariffs(userData.data)
+          }
+        }
         showAlert("Deleted", "User-defined tariff has been successfully deleted.")
       }
     } catch (e) {

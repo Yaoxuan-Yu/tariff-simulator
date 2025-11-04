@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -55,7 +56,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/error").permitAll()
@@ -66,7 +67,12 @@ public class SecurityConfig {
                         "/swagger-ui/**"
                 ).permitAll()
 
-                .requestMatchers("/api/tariff-definitions/user/**").hasRole("ADMIN")
+                // Allow GET and POST for viewing/creating user-defined tariffs (simulator tariffs) for all authenticated users
+                // PUT and DELETE require ADMIN (for modifying/deleting user-defined tariffs)
+                .requestMatchers(HttpMethod.GET, "/api/tariff-definitions/user").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/tariff-definitions/user").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/tariff-definitions/user/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/tariff-definitions/user/**").hasRole("ADMIN")
 
                 // for api
                 .requestMatchers("/admin/test-update-tariffs").permitAll()

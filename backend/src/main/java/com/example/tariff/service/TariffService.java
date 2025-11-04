@@ -30,12 +30,15 @@ public class TariffService {
     private final TariffRepository tariffRepository;
     private final ProductRepository productRepository;
     private final WitsApiService witsApiService;
+    private final SessionTariffService sessionTariffService;
     private final List<TariffDefinitionsResponse.TariffDefinitionDto> userDefinedTariffs = new ArrayList<>();
-    public TariffService(TariffRepository tariffRepository, ProductRepository productRepository, WitsApiService witsApiService) {
+    
+    public TariffService(TariffRepository tariffRepository, ProductRepository productRepository, 
+                        WitsApiService witsApiService, SessionTariffService sessionTariffService) {
         this.tariffRepository = tariffRepository;
         this.productRepository = productRepository;
         this.witsApiService = witsApiService;
-
+        this.sessionTariffService = sessionTariffService;
     }
 
 
@@ -47,11 +50,16 @@ public class TariffService {
         double quantity,
         String customCost,
         String mode,
-        String userTariffId
+        String userTariffId,
+        jakarta.servlet.http.HttpSession session
     ) {
         if (mode != null && mode.equalsIgnoreCase("user")) {
+            // Use session tariffs for simulator mode (if session available)
+            List<TariffDefinitionsResponse.TariffDefinitionDto> tariffsToSearch = 
+                (session != null) ? sessionTariffService.getTariffDefinitions(session) : userDefinedTariffs;
+            
             TariffDefinitionsResponse.TariffDefinitionDto selected = findMatchingUserTariff(
-                userTariffId, productName, exportingFrom, importingTo
+                userTariffId, productName, exportingFrom, importingTo, tariffsToSearch
             );
             if (selected == null) {
                 return new TariffResponse(false, "Selected user-defined tariff not found or not applicable");
@@ -109,11 +117,12 @@ public class TariffService {
         String userTariffId,
         String product,
         String exportingFrom,
-        String importingTo
+        String importingTo,
+        List<TariffDefinitionsResponse.TariffDefinitionDto> tariffsToSearch
     ) {
         // If an explicit ID is provided, prefer exact match
         if (userTariffId != null && !userTariffId.isEmpty()) {
-            for (TariffDefinitionsResponse.TariffDefinitionDto dto : userDefinedTariffs) {
+            for (TariffDefinitionsResponse.TariffDefinitionDto dto : tariffsToSearch) {
                 if (userTariffId.equals(dto.getId())
                     && product.equals(dto.getProduct())
                     && exportingFrom.equals(dto.getExportingFrom())
@@ -124,7 +133,7 @@ public class TariffService {
             return null;
         }
         // Otherwise, pick the first applicable user-defined tariff for the route and product
-        for (TariffDefinitionsResponse.TariffDefinitionDto dto : userDefinedTariffs) {
+        for (TariffDefinitionsResponse.TariffDefinitionDto dto : tariffsToSearch) {
             if (product.equals(dto.getProduct())
                 && exportingFrom.equals(dto.getExportingFrom())
                 && importingTo.equals(dto.getImportingTo())) {

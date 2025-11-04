@@ -1,8 +1,10 @@
 package com.example.tariff.dto;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class CalculationHistoryDto {
+public class CalculationHistoryDto implements Serializable {
+    private static final long serialVersionUID = 1L;
     private String id;
     private String productName;
     private String brand;

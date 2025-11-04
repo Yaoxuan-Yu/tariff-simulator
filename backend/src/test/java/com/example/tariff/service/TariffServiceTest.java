@@ -169,7 +169,7 @@ public class TariffServiceTest {
         userTariff.setType("Custom Duty");
         userTariff.setRate(5.0);
 
-        tariffService.addUserTariffDefinition(userTariff);
+        tariffService.addAdminTariffDefinition(userTariff);
 
         TariffResponse response = tariffService.calculateWithMode(
             productName, brand, exportingFrom, importingTo, quantity, customCost, mode, userTariffId);

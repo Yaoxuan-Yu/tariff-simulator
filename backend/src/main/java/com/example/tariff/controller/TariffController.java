@@ -17,7 +17,9 @@ import com.example.tariff.dto.TariffResponse;
 import com.example.tariff.service.CsvExportService;
 import com.example.tariff.service.ModeManager;
 import com.example.tariff.service.SessionHistoryService;
+import com.example.tariff.service.SessionTariffService;
 import com.example.tariff.service.ExportCartService;
+import com.example.tariff.config.SecurityContextUtil;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +32,6 @@ import com.example.tariff.service.TariffService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @Tag(name="Tariffs", description="A summary of all our API endpoints for tariff calculations and related data")
@@ -43,15 +44,17 @@ public class TariffController {
     private final CsvExportService csvExportService;
     private final ModeManager modeManager;
     private final SessionHistoryService sessionHistoryService;
+    private final SessionTariffService sessionTariffService;
     private final ExportCartService exportCartService;
 
     public TariffController(TariffService tariffService, CsvExportService csvExportService, 
                           ModeManager modeManager, SessionHistoryService sessionHistoryService,
-                          ExportCartService exportCartService) {
+                          SessionTariffService sessionTariffService, ExportCartService exportCartService) {
         this.tariffService = tariffService;
         this.csvExportService = csvExportService;
         this.modeManager = modeManager;
         this.sessionHistoryService = sessionHistoryService;
+        this.sessionTariffService = sessionTariffService;
         this.exportCartService = exportCartService;
     }
 
@@ -95,20 +98,32 @@ public class TariffController {
             }
         }
 
+        TariffResponse response;
         if (mode != null && mode.equalsIgnoreCase("user")) {
-            modeManager.useSimulatorMode();
+            // For simulator mode, call TariffService directly with session to use session-based tariffs
+            response = tariffService.calculateWithMode(
+                product,
+                brand,
+                exportingFrom,
+                importingTo,
+                quantity,
+                customCost,
+                "user",
+                userTariffId,
+                session
+            );
         } else {
+            // For global mode, use the mode manager
             modeManager.useGlobalMode();
+            response = modeManager.calculate(
+                importingTo,
+                exportingFrom,
+                product,
+                brand,
+                quantity,
+                customCost
+            );
         }
-
-        TariffResponse response = modeManager.calculate(
-            importingTo,
-            exportingFrom,
-            product,
-            brand,
-            quantity,
-            customCost
-        );
 
         // SAVE TO SESSION HISTORY
         if (response.isSuccess()) {
@@ -163,44 +178,85 @@ public class TariffController {
         return ResponseEntity.ok(tariffService.getGlobalTariffDefinitions());
     }
 
-    @Operation(summary = "Retrieve only user-defined tariff definitions")
+    @Operation(summary = "Retrieve only user-defined tariff definitions (session-based for simulator mode)")
     @GetMapping("/tariff-definitions/user")
-    public ResponseEntity<TariffDefinitionsResponse> getUserTariffDefinitions() {
-        return ResponseEntity.ok(tariffService.getUserTariffDefinitions());
+    public ResponseEntity<TariffDefinitionsResponse> getUserTariffDefinitions(HttpSession session) {
+        // Get session-based tariffs (for simulator mode)
+        List<TariffDefinitionsResponse.TariffDefinitionDto> sessionTariffs = 
+            sessionTariffService.getTariffDefinitions(session);
+        
+        // If admin, also include database tariffs
+        if (SecurityContextUtil.isAdmin()) {
+            TariffDefinitionsResponse dbResponse = tariffService.getUserTariffDefinitions();
+            List<TariffDefinitionsResponse.TariffDefinitionDto> allTariffs = new java.util.ArrayList<>(sessionTariffs);
+            if (dbResponse != null && dbResponse.getData() != null) {
+                allTariffs.addAll(dbResponse.getData());
+            }
+            return ResponseEntity.ok(new TariffDefinitionsResponse(true, allTariffs));
+        }
+        
+        // Regular users only see their session tariffs
+        return ResponseEntity.ok(new TariffDefinitionsResponse(true, sessionTariffs));
     }
 
-    // added in by me for admin only
-    @Operation(summary = "Add a new user-defined tariff definition (Admin only)")
+    @Operation(summary = "Add a new user-defined tariff definition (Admin saves to DB, regular users save to session for simulator mode)")
     @PostMapping("/tariff-definitions/user")
-    public ResponseEntity<TariffDefinitionsResponse> addUserTariffDefinition(@RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
+    public ResponseEntity<TariffDefinitionsResponse> addUserTariffDefinition(
+            @RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto,
+            HttpSession session) {
         if (dto == null) {
             throw new com.example.tariff.exception.BadRequestException("Tariff definition data is required");
         }
-        return ResponseEntity.ok(tariffService.addAdminTariffDefinition(dto));
+        
+        // If admin, save to database (permanent)
+        if (SecurityContextUtil.isAdmin()) {
+            return ResponseEntity.ok(tariffService.addAdminTariffDefinition(dto));
+        }
+        
+        // Regular users save to session (for simulator mode)
+        TariffDefinitionsResponse.TariffDefinitionDto saved = sessionTariffService.saveTariffDefinition(session, dto);
+        return ResponseEntity.ok(new TariffDefinitionsResponse(true, List.of(saved)));
     }
 
     
-    @Operation(summary = "Update an existing user-defined tariff definition (Admin only)")
+    @Operation(summary = "Update an existing user-defined tariff definition (Admin updates DB, regular users update session)")
     @PutMapping("/tariff-definitions/user/{id}")
     public ResponseEntity<TariffDefinitionsResponse> updateUserTariffDefinition(
             @PathVariable String id,
-            @RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
+            @RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto,
+            HttpSession session) {
         if (dto == null) {
             throw new com.example.tariff.exception.BadRequestException("Tariff definition data is required");
         }
         if (id == null || id.trim().isEmpty()) {
             throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
         }
-        return ResponseEntity.ok(tariffService.updateAdminTariffDefinition(id, dto));
+        
+        // If admin, update in database
+        if (SecurityContextUtil.isAdmin()) {
+            return ResponseEntity.ok(tariffService.updateAdminTariffDefinition(id, dto));
+        }
+        
+        // Regular users update in session
+        TariffDefinitionsResponse.TariffDefinitionDto updated = sessionTariffService.updateTariffDefinition(session, id, dto);
+        return ResponseEntity.ok(new TariffDefinitionsResponse(true, List.of(updated)));
     }
 
-    @Operation(summary = "Delete a user-defined tariff definition (Admin only)")
+    @Operation(summary = "Delete a user-defined tariff definition (Admin deletes from DB, regular users delete from session)")
     @DeleteMapping("/tariff-definitions/user/{id}")
-    public ResponseEntity<?> deleteUserTariffDefinition(@PathVariable String id) {
+    public ResponseEntity<?> deleteUserTariffDefinition(@PathVariable String id, HttpSession session) {
         if (id == null || id.trim().isEmpty()) {
             throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
         }
-        tariffService.deleteAdminTariffDefinition(id);
+        
+        // If admin, delete from database
+        if (SecurityContextUtil.isAdmin()) {
+            tariffService.deleteAdminTariffDefinition(id);
+            return ResponseEntity.ok().build();
+        }
+        
+        // Regular users delete from session
+        sessionTariffService.deleteTariffDefinition(session, id);
         return ResponseEntity.ok().build();
     }
         // added in by trisha for csv export cart 

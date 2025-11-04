@@ -42,16 +42,25 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
 
         if (tariffSource === "global") {
           // Load global products and countries
-          const productsResponse = await fetch('http://localhost:8080/api/products', { headers: authHeaders })
+          const productsResponse = await fetch('http://localhost:8080/api/products', { 
+            headers: authHeaders,
+            credentials: 'include'
+          })
           const productsData = await productsResponse.json()
           setProducts(Array.isArray(productsData) ? productsData : [])
           
-          const countriesResponse = await fetch('http://localhost:8080/api/countries', { headers: authHeaders })
+          const countriesResponse = await fetch('http://localhost:8080/api/countries', { 
+            headers: authHeaders,
+            credentials: 'include'
+          })
           const countriesData = await countriesResponse.json()
           setCountries(Array.isArray(countriesData) ? countriesData : [])
         } else {
           // Load user-defined tariffs
-          const res = await fetch('http://localhost:8080/api/tariff-definitions/user', { headers: authHeaders })
+          const res = await fetch('http://localhost:8080/api/tariff-definitions/user', { 
+            headers: authHeaders,
+            credentials: 'include'
+          })
           const data = await res.json()
           if (data.success && Array.isArray(data.data)) {
             setUserTariffs(data.data)
@@ -106,7 +115,10 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
             'Content-Type': 'application/json'
           }
 
-          const response = await fetch(`http://localhost:8080/api/brands?product=${encodeURIComponent(value)}`, { headers: authHeaders })
+          const response = await fetch(`http://localhost:8080/api/brands?product=${encodeURIComponent(value)}`, { 
+            headers: authHeaders,
+            credentials: 'include'
+          })
           const brandsData = await response.json()
           setAvailableBrands(Array.isArray(brandsData) ? brandsData : [])
           
@@ -162,14 +174,48 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
       const token = session?.access_token
 
       const response = await fetch(`http://localhost:8080/api/tariff?${params}`, {
+        method: 'GET',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+        setError(errorData.error || "Calculation failed")
+        return
+      }
+      
       const result = await response.json()
       
       if (result.success && result.data) {
+        // Fetch the latest calculation from history to get the ID
+        try {
+          const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
+            method: 'GET',
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : '',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          })
+          
+          if (historyResponse.ok) {
+            const historyData = await historyResponse.json()
+            if (Array.isArray(historyData) && historyData.length > 0) {
+              // Get the most recent calculation (first in array)
+              const latestCalculation = historyData[0]
+              // Attach the calculation ID to the result
+              result.data.calculationId = latestCalculation.id
+              result.data.calculationDate = latestCalculation.createdAt
+            }
+          }
+        } catch (err) {
+          console.warn("Could not fetch calculation ID from history:", err)
+        }
+        
         onCalculationComplete(result.data)
       } else {
         setError(result.error || "Calculation failed")

@@ -22,6 +22,7 @@ export default function Home() {
   const [calculatorMode, setCalculatorMode] = useState<"global" | "simulator">("global")
   const [sessionHistory, setSessionHistory] = useState<any[]>([])
   const [exportCart, setExportCart] = useState<any[]>([])
+  const [cartCount, setCartCount] = useState<number>(0)
 
   const handleLogin = (userData: any) => {
     setUser(userData)
@@ -37,6 +38,46 @@ export default function Home() {
     setCalculationResults(null)
     setSessionHistory([])
     setExportCart([])
+  }
+
+  // Fetch cart count from backend
+  const fetchCartCount = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const response = await fetch('http://localhost:8080/api/export-cart', {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      })
+      
+      if (response.status === 204 || !response.ok) {
+        // Empty cart or error
+        setCartCount(0)
+      } else if (response.ok) {
+        // Check if response has content before parsing
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const cartData = await response.json()
+            setCartCount(Array.isArray(cartData) ? cartData.length : 0)
+          } catch (parseError) {
+            console.error("Error parsing cart data:", parseError)
+            setCartCount(0)
+          }
+        } else {
+          // No JSON content
+          setCartCount(0)
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching cart count:", err)
+      setCartCount(0)
+    }
   }
 
   useEffect(() => {
@@ -55,6 +96,9 @@ export default function Home() {
           role: profile?.role || 'user',
           name: data.session.user.email?.split('@')[0] || 'User'
         })
+        
+        // Fetch cart count
+        fetchCartCount()
       }
     }
     init()
@@ -73,8 +117,12 @@ export default function Home() {
           role: profile?.role || 'user',
           name: session.user.email?.split('@')[0] || 'User'
         })
+        
+        // Fetch cart count
+        fetchCartCount()
       } else {
         setUser(null)
+        setCartCount(0)
       }
     })
 
@@ -83,45 +131,84 @@ export default function Home() {
     }
   }, [])
 
-  const handleCalculationComplete = (results: any) => {
+  const handleCalculationComplete = async (results: any) => {
     console.log('Raw calculation results:', results)
     
-    // The TariffCalculatorForm passes result.data, which contains the actual calculation
+    // The TariffCalculatorForm already fetches the calculation ID from backend history
     // Wrap it properly with metadata
     const calculationWithId = {
       data: results, // This is the actual calculation data from backend
-      calculationId: `calc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      calculationDate: new Date().toISOString()
+      calculationId: results.calculationId || `calc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      calculationDate: results.calculationDate || new Date().toISOString()
     }
     
     console.log('Processed calculation:', calculationWithId)
     
     setCalculationResults(calculationWithId)
     
-    // Automatically add to session history
-    setSessionHistory(prev => [calculationWithId, ...prev])
-  }
-
-  const handleAddToCart = (calculation: any) => {
-    // Check if already in cart
-    const exists = exportCart.some(item => item.calculationId === calculation.calculationId)
-    if (!exists) {
-      setExportCart(prev => [...prev, calculation])
-      return true
+    // Fetch updated history from backend
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      })
+      
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json()
+        setSessionHistory(Array.isArray(historyData) ? historyData : [])
+      }
+    } catch (err) {
+      console.error("Error fetching history:", err)
     }
-    return false
   }
 
-  const handleRemoveFromCart = (calculationId: string) => {
-    setExportCart(prev => prev.filter(item => item.calculationId !== calculationId))
+  const handleAddToCart = async (calculation: any) => {
+    // The ResultsTable component now handles adding to cart directly via API
+    // This callback is kept for compatibility but the actual work is done in ResultsTable
+    // Refresh cart count after adding
+    await fetchCartCount()
+    return true
   }
 
-  const handleClearCart = () => {
-    setExportCart([])
+  const handleRemoveFromCart = async (calculationId: string) => {
+    // ExportPage handles removal via API, just refresh count here
+    await fetchCartCount()
   }
 
-  const handleClearHistory = () => {
-    setSessionHistory([])
+  const handleClearCart = async () => {
+    // ExportPage handles clearing via API, just refresh count here
+    await fetchCartCount()
+  }
+
+  const handleClearHistory = async () => {
+    // Refresh history from backend
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      })
+      
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json()
+        setSessionHistory(Array.isArray(historyData) ? historyData : [])
+      }
+    } catch (err) {
+      console.error("Error fetching history:", err)
+    }
   }
 
   if (!user) {
@@ -170,19 +257,45 @@ export default function Home() {
                   Simulator Tariffs
                 </button>
                 <button
-                  onClick={() => setCurrentView("cart")}
+                  onClick={() => {
+                    setCurrentView("cart")
+                    fetchCartCount() // Refresh cart count when navigating to cart
+                  }}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     currentView === "cart" ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  Export Cart ({exportCart.length})
+                  Export Cart ({cartCount})
                 </button>
               </nav>
             </div>
 
             <div className="flex items-center space-x-4">
               <Button
-                onClick={() => setCurrentView("history")}
+                onClick={async () => {
+                  setCurrentView("history")
+                  // Refresh history count when navigating to history
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession()
+                    const token = session?.access_token
+                    
+                    const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
+                      method: 'GET',
+                      headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                        'Content-Type': 'application/json'
+                      },
+                      credentials: 'include'
+                    })
+                    
+                    if (historyResponse.ok) {
+                      const historyData = await historyResponse.json()
+                      setSessionHistory(Array.isArray(historyData) ? historyData : [])
+                    }
+                  } catch (err) {
+                    console.error("Error fetching history:", err)
+                  }
+                }}
                 variant="outline"
                 size="sm"
                 className="flex items-center space-x-2 bg-transparent"
@@ -313,19 +426,19 @@ export default function Home() {
             </div>
             <TariffDefinitionsTable userRole={user.role} simulatorMode={true} />
           </>
-        ) : currentView === "cart" ? (
+        )}
+
+        {currentView === "cart" && (
           <>
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">Export Cart</h2>
               <p className="text-slate-600">Manage and export your selected calculations.</p>
             </div>
-            <ExportPage 
-              cartItems={exportCart} 
-              onRemoveFromCart={handleRemoveFromCart}
-              onClearCart={handleClearCart}
-            />
+            <ExportPage />
           </>
-        ) : (
+        )}
+
+        {currentView === "history" && (
           <>
             <div className="mb-8 flex items-center justify-between">
               <div>
@@ -340,44 +453,7 @@ export default function Home() {
                 Back to Dashboard
               </Button>
             </div>
-            <SessionHistoryPage 
-              historyItems={sessionHistory}
-              onAddToCart={handleAddToCart}
-              onClearHistory={handleClearHistory}
-            />
-          </>
-        ) : currentView === "cart" ? (
-          <>
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Export Cart</h2>
-              <p className="text-slate-600">Manage and export your selected calculations.</p>
-            </div>
-            <ExportPage 
-              cartItems={exportCart} 
-              onRemoveFromCart={handleRemoveFromCart}
-              onClearCart={handleClearCart}
-            />
-          </>
-        ) : (
-          <>
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">Session History</h2>
-                <p className="text-slate-600">View and manage your calculation history.</p>
-              </div>
-              <Button
-                onClick={() => setCurrentView("dashboard")}
-                variant="outline"
-                size="sm"
-              >
-                Back to Dashboard
-              </Button>
-            </div>
-            <SessionHistoryPage 
-              historyItems={sessionHistory}
-              onAddToCart={handleAddToCart}
-              onClearHistory={handleClearHistory}
-            />
+            <SessionHistoryPage />
           </>
         )}
       </main>

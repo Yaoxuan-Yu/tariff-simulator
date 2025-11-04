@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
@@ -131,7 +132,9 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
         return "ROLE_USER";
     }
     
-    public static class SupabaseUserDetails {
+    public static class SupabaseUserDetails implements Serializable {
+        private static final long serialVersionUID = 1L;
+        
         private final String userId;
         private final String email;
         

@@ -30,4 +30,13 @@ public class SecurityContextUtil {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal());
     }
+
+    public static boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated()) {
+            return auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        }
+        return false;
+    }
 }

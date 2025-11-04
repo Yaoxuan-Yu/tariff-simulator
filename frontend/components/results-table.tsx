@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface ResultsTableProps {
   results: any
-  onAddToCart: (calculation: any) => boolean
+  onAddToCart: (calculation: any) => boolean | Promise<boolean>
 }
 
 export function ResultsTable({ results, onAddToCart }: ResultsTableProps) {
@@ -21,75 +21,63 @@ export function ResultsTable({ results, onAddToCart }: ResultsTableProps) {
       setSuccessMessage("")
       setDebugInfo("")
 
-      console.log('=== ADD TO CART DEBUG ===')
-      console.log('Raw results:', results)
-
       if (!results) {
         setExportError("No calculation data available")
         return
       }
 
-      // Try to add via callback first
-      const callbackSuccess = onAddToCart(results)
-      
-      if (callbackSuccess) {
-        setSuccessMessage("Calculation added to export cart successfully!")
-        setTimeout(() => setSuccessMessage(""), 3000)
+      const data = results.data || results
+      const calculationId = data.calculationId
+
+      if (!calculationId) {
+        setExportError("Calculation ID not found. Please calculate again.")
         return
       }
 
-      // If callback didn't work, try direct API call for debugging
-      console.log('Callback returned false, trying direct API call...')
-      
-      const data = results.data || results
-      const payload = {
-        calculationId: data.calculationId || `calc-${Date.now()}`,
-        product: data.product,
-        brand: data.brand,
-        exportingFrom: data.exportingFrom,
-        importingTo: data.importingTo,
-        quantity: data.quantity,
-        unit: data.unit,
-        productCost: data.productCost,
-        totalCost: data.totalCost,
-        tariffType: data.tariffType,
-        calculationDate: data.calculationDate || new Date().toISOString(),
-        breakdown: data.breakdown
-      }
+      // Import supabase to get auth token
+      const supabase = (await import("@/lib/supabaseClient")).default
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
 
-      console.log('Sending payload:', payload)
-
-      const response = await fetch('http://localhost:8080/api/export-cart/add', {
+      // Call backend API with calculationId in path
+      const response = await fetch(`http://localhost:8080/api/export-cart/add/${encodeURIComponent(calculationId)}`, {
         method: 'POST',
         headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
-        body: JSON.stringify(payload)
+        credentials: 'include'
       })
 
-      console.log('Response status:', response.status)
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
-
-      const responseText = await response.text()
-      console.log('Response body:', responseText)
-
       if (!response.ok) {
-        setDebugInfo(`Status: ${response.status}, Body: ${responseText}`)
-        throw new Error(`Server returned ${response.status}: ${responseText}`)
+        const responseText = await response.text()
+        let errorMessage = `Server returned ${response.status}`
+        try {
+          const errorData = JSON.parse(responseText)
+          errorMessage = errorData.message || errorData.error || errorMessage
+        } catch {
+          errorMessage = responseText || errorMessage
+        }
+        
+        if (response.status === 400 && errorMessage.includes("already in cart")) {
+          setExportError("This calculation is already in your export cart")
+        } else if (response.status === 404) {
+          setExportError("Calculation not found in history. Please calculate again.")
+        } else {
+          setExportError(`Failed to add to cart: ${errorMessage}`)
+        }
+        return
       }
 
-      setSuccessMessage("Added via direct API call!")
+      setSuccessMessage("Calculation added to export cart successfully!")
       setTimeout(() => setSuccessMessage(""), 3000)
+      
+      // Trigger callback to refresh cart count in parent
+      await onAddToCart(results)
 
     } catch (error: any) {
       console.error("Error adding to cart:", error)
       setExportError(`Failed to add to cart: ${error.message}`)
-      setDebugInfo(JSON.stringify({
-        errorMessage: error.message,
-        errorStack: error.stack,
-        results: results
-      }, null, 2))
     }
   }
 

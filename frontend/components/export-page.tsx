@@ -53,7 +53,16 @@ export function ExportPage() {
   const loadCartItems = async () => {
     try {
       setIsLoading(true)
+      const supabase = (await import("@/lib/supabaseClient")).default
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
       const response = await fetch('http://localhost:8080/api/export-cart', {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
         credentials: 'include'
       })
 
@@ -110,10 +119,18 @@ export function ExportPage() {
       let successCount = 0
       let failCount = 0
 
+      const supabase = (await import("@/lib/supabaseClient")).default
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
       for (const calculationId of selectedItems) {
         try {
           const response = await fetch(`http://localhost:8080/api/export-cart/remove/${calculationId}`, {
             method: 'DELETE',
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : '',
+              'Content-Type': 'application/json'
+            },
             credentials: 'include'
           })
 
@@ -151,8 +168,16 @@ export function ExportPage() {
 
     try {
       setError("")
+      const supabase = (await import("@/lib/supabaseClient")).default
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
       const response = await fetch('http://localhost:8080/api/export-cart/clear', {
         method: 'DELETE',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
         credentials: 'include'
       })
 
@@ -171,9 +196,17 @@ export function ExportPage() {
   }
 
   const handleDownloadClick = () => {
+    if (cartItems.length === 0) {
+      setError("Export cart is empty. Please add calculations to the cart first.")
+      setTimeout(() => setError(""), 3000)
+      return
+    }
+
     if (selectedItems.size === 0) {
       setShowDownloadDialog(true)
     } else {
+      // Note: Backend currently exports all items, not just selected ones
+      // The selectedItems check is for future enhancement
       handleDownloadCSV()
     }
   }
@@ -183,32 +216,76 @@ export function ExportPage() {
       setError("")
       setShowDownloadDialog(false)
 
+      if (cartItems.length === 0) {
+        setError("Export cart is empty. Please add calculations to the cart first.")
+        return
+      }
+
+      // Import supabase to get auth token
+      const supabase = (await import("@/lib/supabaseClient")).default
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
       const response = await fetch('http://localhost:8080/api/export-cart/export', {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
         credentials: 'include'
       })
 
       if (!response.ok) {
-        throw new Error("Failed to download CSV")
+        let errorMessage = `Failed to download CSV (${response.status})`
+        try {
+          const errorText = await response.text()
+          if (errorText) {
+            try {
+              const errorJson = JSON.parse(errorText)
+              errorMessage = errorJson.message || errorJson.error || errorMessage
+            } catch {
+              errorMessage = errorText.length < 100 ? errorText : errorMessage
+            }
+          }
+        } catch {
+          // If we can't read error text, use default message
+        }
+        
+        if (response.status === 404) {
+          errorMessage = "Export cart is empty. Please add calculations to the cart first."
+        }
+        
+        throw new Error(errorMessage)
+      }
+
+      // Check content type
+      const contentType = response.headers.get('content-type')
+      if (contentType && !contentType.includes('text/csv') && !contentType.includes('application/octet-stream')) {
+        console.warn('Unexpected content type:', contentType)
       }
 
       const blob = await response.blob()
+      
+      // Check if blob is empty
+      if (blob.size === 0) {
+        throw new Error("Received empty CSV file. The export cart may be empty.")
+      }
+
+      // Create download link
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
       link.setAttribute('download', `tariff-calculations-${new Date().toISOString().split('T')[0]}.csv`)
       document.body.appendChild(link)
       link.click()
-      link.remove()
+      document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
 
-      setSuccessMessage(selectedItems.size > 0 
-        ? `Downloaded ${selectedItems.size} selected item${selectedItems.size !== 1 ? 's' : ''} as CSV`
-        : "Downloaded all items as CSV"
-      )
+      setSuccessMessage("Successfully downloaded all cart items as CSV")
       setTimeout(() => setSuccessMessage(""), 3000)
     } catch (err) {
       console.error("Error downloading CSV:", err)
-      setError("Failed to download CSV")
+      setError(`Failed to download CSV: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setTimeout(() => setError(""), 5000)
     }
   }
 

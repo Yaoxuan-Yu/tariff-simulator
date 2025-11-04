@@ -1,5 +1,6 @@
 package com.example.tariff.dto;
 
+import java.io.Serializable;
 import java.util.List;
 
 // to handle tariff definitions response like success status 
@@ -29,7 +30,9 @@ public class TariffDefinitionsResponse {
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }
 
-    public static class TariffDefinitionDto {
+    public static class TariffDefinitionDto implements Serializable {
+        private static final long serialVersionUID = 1L;
+        
         private String id;
         private String product;
         private String exportingFrom;
