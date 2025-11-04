@@ -169,6 +169,7 @@ public class TariffController {
         return ResponseEntity.ok(tariffService.getUserTariffDefinitions());
     }
 
+    // added in by me for admin only
     @Operation(summary = "Add a new user-defined tariff definition (Admin only)")
     @PostMapping("/tariff-definitions/user")
     public ResponseEntity<TariffDefinitionsResponse> addUserTariffDefinition(@RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
@@ -178,6 +179,31 @@ public class TariffController {
         return ResponseEntity.ok(tariffService.addAdminTariffDefinition(dto));
     }
 
+    
+    @Operation(summary = "Update an existing user-defined tariff definition (Admin only)")
+    @PutMapping("/tariff-definitions/user/{id}")
+    public ResponseEntity<TariffDefinitionsResponse> updateUserTariffDefinition(
+            @PathVariable String id,
+            @RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        if (dto == null) {
+            throw new com.example.tariff.exception.BadRequestException("Tariff definition data is required");
+        }
+        if (id == null || id.trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
+        }
+        return ResponseEntity.ok(tariffService.updateAdminTariffDefinition(id, dto));
+    }
+
+    @Operation(summary = "Delete a user-defined tariff definition (Admin only)")
+    @DeleteMapping("/tariff-definitions/user/{id}")
+    public ResponseEntity<?> deleteUserTariffDefinition(@PathVariable String id) {
+        if (id == null || id.trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
+        }
+        tariffService.deleteAdminTariffDefinition(id);
+        return ResponseEntity.ok().build();
+    }
+        // added in by trisha for csv export cart 
         // ===== SESSION HISTORY ENDPOINTS =====
 
     @Operation(summary = "Get all calculations from session history")
@@ -219,32 +245,6 @@ public class TariffController {
         List<CalculationHistoryDto> cart = exportCartService.getCart(session);
         if (cart.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-        }
-        return ResponseEntity.ok(cart);
-    }
-
-    @Operation(summary = "Update an existing user-defined tariff definition (Admin only)")
-    @PutMapping("/tariff-definitions/user/{id}")
-    public ResponseEntity<TariffDefinitionsResponse> updateUserTariffDefinition(
-            @PathVariable String id,
-            @RequestBody TariffDefinitionsResponse.TariffDefinitionDto dto) {
-        if (dto == null) {
-            throw new com.example.tariff.exception.BadRequestException("Tariff definition data is required");
-        }
-        if (id == null || id.trim().isEmpty()) {
-            throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
-        }
-        return ResponseEntity.ok(tariffService.updateAdminTariffDefinition(id, dto));
-    }
-
-    @Operation(summary = "Delete a user-defined tariff definition (Admin only)")
-    @DeleteMapping("/tariff-definitions/user/{id}")
-    public ResponseEntity<?> deleteUserTariffDefinition(@PathVariable String id) {
-        if (id == null || id.trim().isEmpty()) {
-            throw new com.example.tariff.exception.BadRequestException("Tariff definition ID is required");
-        }
-        if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
-            throw new com.example.tariff.exception.BadRequestException("Exporting country is required");
         }
         return ResponseEntity.ok(cart);
     }

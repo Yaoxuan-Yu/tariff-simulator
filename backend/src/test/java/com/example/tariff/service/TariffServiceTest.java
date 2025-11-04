@@ -175,6 +175,7 @@ public class TariffServiceTest {
             productName, brand, exportingFrom, importingTo, quantity, customCost, mode, userTariffId);
 
         assertTrue(response.isSuccess());
+        assertNotNull(response.getData());
         assertEquals(30.0, response.getData().getProductCost());
         assertEquals(5.0, response.getData().getTariffRate());
         assertEquals(31.5, response.getData().getTotalCost());
