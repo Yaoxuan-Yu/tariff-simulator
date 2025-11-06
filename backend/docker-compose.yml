@@ -1,0 +1,222 @@
+version: '3.8'
+
+services:
+  # Redis for distributed sessions
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Note: PostgreSQL is not included as we're using Supabase (hosted PostgreSQL)
+  # If you need a local PostgreSQL for development, uncomment the service below:
+  # postgres:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_DB: postgres
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - microservices-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+
+  # API Gateway (Port 8080)
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_SESSION_REDIS_HOST=redis
+      - SPRING_SESSION_REDIS_PORT=6379
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET:-}
+      - SUPABASE_JWT_AUDIENCE=${SUPABASE_JWT_AUDIENCE:-}
+      - SUPABASE_JWT_ISSUER=${SUPABASE_JWT_ISSUER:-}
+      - SERVICES_PRODUCT_SERVICE_URL=http://product-service:8084
+      - SERVICES_GLOBAL_TARIFFS_URL=http://global-tariffs:8083
+      - SERVICES_SIMULATOR_TARIFFS_URL=http://simulator-tariffs:8086
+      - SERVICES_TARIFF_CALCULATOR_URL=http://tariff-calculator:8081
+      - SERVICES_SESSION_MANAGEMENT_URL=http://session-management:8082
+      - SERVICES_CSV_EXPORT_URL=http://csv-export:8085
+    depends_on:
+      redis:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      global-tariffs:
+        condition: service_started
+      simulator-tariffs:
+        condition: service_started
+      tariff-calculator:
+        condition: service_started
+      session-management:
+        condition: service_started
+      csv-export:
+        condition: service_started
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Tariff Calculator (Port 8081)
+  tariff-calculator:
+    build:
+      context: ./tariff-calculator
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      # Supabase Database Configuration (hosted PostgreSQL)
+      # REQUIRED: Set SUPABASE_DATABASE_URL, SUPABASE_DATABASE_USERNAME, SUPABASE_DATABASE_PASSWORD
+      - SPRING_DATASOURCE_URL=${SUPABASE_DATABASE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SUPABASE_DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DATABASE_PASSWORD}
+      - SERVICES_SESSION_MANAGEMENT_URL=http://session-management:8082
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+    depends_on:
+      session-management:
+        condition: service_started
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Session Management (Port 8082)
+  session-management:
+    build:
+      context: ./session-management
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_SESSION_REDIS_HOST=redis
+      - SPRING_SESSION_REDIS_PORT=6379
+      - SERVICES_TARIFF_CALCULATOR_URL=http://tariff-calculator:8081
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Global Tariffs (Port 8083)
+  global-tariffs:
+    build:
+      context: ./global-tariffs
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      # Supabase Database Configuration (hosted PostgreSQL)
+      # REQUIRED: Set SUPABASE_DATABASE_URL, SUPABASE_DATABASE_USERNAME, SUPABASE_DATABASE_PASSWORD
+      - SPRING_DATASOURCE_URL=${SUPABASE_DATABASE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SUPABASE_DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DATABASE_PASSWORD}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Product Service (Port 8084)
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      # Supabase Database Configuration (hosted PostgreSQL)
+      # REQUIRED: Set SUPABASE_DATABASE_URL, SUPABASE_DATABASE_USERNAME, SUPABASE_DATABASE_PASSWORD
+      - SPRING_DATASOURCE_URL=${SUPABASE_DATABASE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SUPABASE_DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DATABASE_PASSWORD}
+      - SERVICES_GLOBAL_TARIFFS_URL=http://global-tariffs:8083
+    depends_on:
+      global-tariffs:
+        condition: service_started
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # CSV Export (Port 8085)
+  csv-export:
+    build:
+      context: ./csv-export
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_SESSION_REDIS_HOST=redis
+      - SPRING_SESSION_REDIS_PORT=6379
+      - SERVICES_SESSION_MANAGEMENT_URL=http://session-management:8082
+    depends_on:
+      redis:
+        condition: service_healthy
+      session-management:
+        condition: service_started
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Simulator Tariffs (Port 8086)
+  simulator-tariffs:
+    build:
+      context: ./simulator-tariffs
+      dockerfile: Dockerfile
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_SESSION_REDIS_HOST=redis
+      - SPRING_SESSION_REDIS_PORT=6379
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # WITS API Integration (Port 8087)
+  wits-api-integration:
+    build:
+      context: ./wits-api-integration
+      dockerfile: Dockerfile
+    ports:
+      - "8087:8087"
+    environment:
+      # Supabase Database Configuration (hosted PostgreSQL)
+      # REQUIRED: Set SUPABASE_DATABASE_URL, SUPABASE_DATABASE_USERNAME, SUPABASE_DATABASE_PASSWORD
+      - SPRING_DATASOURCE_URL=${SUPABASE_DATABASE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SUPABASE_DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DATABASE_PASSWORD}
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+volumes:
+  # postgres_data:  # Only needed if using local PostgreSQL
+  redis_data:
+
+networks:
+  microservices-network:
+    driver: bridge

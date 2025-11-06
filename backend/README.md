@@ -1,52 +1,52 @@
-# asean-tariff-simulator
-ASEAN Tariff Simulator MVP
+The backend is split into the following microservices:
+
+- api-gateway (Port 8080) - API Gateway with authentication
+- tariff-calculator (Port 8081) - Tariff calculation service
+- session-management (Port 8082) - Session history management
+- global-tariffs (Port 8083) - Global tariff definitions
+- product-service (Port 8084) - Product catalog service
+- csv-export (Port 8085) - CSV export functionality
+- simulator-tariffs (Port 8086) - Simulator tariff definitions
+- wits-api-integration (Port 8087) - WITS API integration
+
+Commands to run backend: (remember to install and launch docker first)
+
+cd backend
+docker-compose up -d --build
+
+or run every single microservice manually using:
+
+mvnw spring-boot:run
 
 
-# Read Me First
-The following was discovered as part of building this project:
+Product endpoints:
+GET /api/products → ProductRoutingController → product-service
+GET /api/countries → ProductRoutingController → product-service
+GET /api/brands?product=... → ProductRoutingController → product-service
 
-* The original package name 'com.example.tariff-simulator' is invalid and this project uses 'com.example.tariff_simulator' instead.
+Tariff calculation:
+GET /api/tariff?params... → TariffRoutingController → tariff-calculator
 
-# Getting Started
+Tariff definitions:
+GET /api/tariff-definitions/global → TariffRoutingController → global-tariffs
+GET /api/tariff-definitions/modified → TariffRoutingController → global-tariffs
+GET /api/tariff-definitions/user → TariffRoutingController → simulator-tariffs
+POST /api/tariff-definitions/user → TariffRoutingController → simulator-tariffs
+POST /api/tariff-definitions/modified → TariffRoutingController → global-tariffs
+PUT /api/tariff-definitions/user/{id} → TariffRoutingController → simulator-tariffs
+PUT /api/tariff-definitions/modified/{id} → TariffRoutingController → global-tariffs
+DELETE /api/tariff-definitions/user/{id} → TariffRoutingController → simulator-tariffs
+DELETE /api/tariff-definitions/modified/{id} → TariffRoutingController → global-tariffs
+GET /api/tariff-definitions/export → TariffRoutingController → global-tariffs
 
-### Reference Documentation
-For further reference, please consider the following sections:
+Export cart:
+GET /api/export-cart → ExportCartRoutingController → csv-export
+POST /api/export-cart/add/{calculationId} → ExportCartRoutingController → csv-export
+DELETE /api/export-cart/remove/{calculationId} → ExportCartRoutingController → csv-export
+DELETE /api/export-cart/clear → ExportCartRoutingController → csv-export
+GET /api/export-cart/export → ExportCartRoutingController → csv-export
 
-* [Official Apache Maven documentation](https://maven.apache.org/guides/index.html)
-* [Spring Boot Maven Plugin Reference Guide](https://docs.spring.io/spring-boot/3.5.5/maven-plugin)
-* [Create an OCI image](https://docs.spring.io/spring-boot/3.5.5/maven-plugin/build-image.html)
-* [Spring Boot DevTools](https://docs.spring.io/spring-boot/3.5.5/reference/using/devtools.html)
-* [Docker Compose Support](https://docs.spring.io/spring-boot/3.5.5/reference/features/dev-services.html#features.dev-services.docker-compose)
-* [Spring Configuration Processor](https://docs.spring.io/spring-boot/3.5.5/specification/configuration-metadata/annotation-processor.html)
-* [Spring Web](https://docs.spring.io/spring-boot/3.5.5/reference/web/servlet.html)
-* [Spring Data JPA](https://docs.spring.io/spring-boot/3.5.5/reference/data/sql.html#data.sql.jpa-and-spring-data)
-* [Tika Document Reader](https://docs.spring.io/spring-ai/reference/api/etl-pipeline.html#_tika_docx_pptx_html)
-* [Spring Security](https://docs.spring.io/spring-boot/3.5.5/reference/web/spring-security.html)
-
-### Guides
-The following guides illustrate how to use some features concretely:
-
-* [Building a RESTful Web Service](https://spring.io/guides/gs/rest-service/)
-* [Serving Web Content with Spring MVC](https://spring.io/guides/gs/serving-web-content/)
-* [Building REST services with Spring](https://spring.io/guides/tutorials/rest/)
-* [Accessing Data with JPA](https://spring.io/guides/gs/accessing-data-jpa/)
-* [Accessing data with MySQL](https://spring.io/guides/gs/accessing-data-mysql/)
-* [Securing a Web Application](https://spring.io/guides/gs/securing-web/)
-* [Spring Boot and OAuth2](https://spring.io/guides/tutorials/spring-boot-oauth2/)
-* [Authenticating a User with LDAP](https://spring.io/guides/gs/authenticating-ldap/)
-
-### Docker Compose support
-This project contains a Docker Compose file named `compose.yaml`.
-In this file, the following services have been defined:
-
-* mysql: [`mysql:latest`](https://hub.docker.com/_/mysql)
-
-Please review the tags of the used images and set them to the same as you're running in production.
-
-### Maven Parent overrides
-
-Due to Maven's design, elements are inherited from the parent POM to the project POM.
-While most of the inheritance is fine, it also inherits unwanted elements like `<license>` and `<developers>` from the parent.
-To prevent this, the project POM contains empty overrides for these elements.
-If you manually switch to a different parent and actually want the inheritance, you need to remove those overrides.
-
+Session history:
+GET /api/tariff/history → SessionRoutingController → session-management
+POST /api/tariff/history/save → SessionRoutingController → session-management (added)
+DELETE /api/tariff/history/clear → SessionRoutingController → session-management

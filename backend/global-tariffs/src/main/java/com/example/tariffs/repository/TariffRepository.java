@@ -1,0 +1,34 @@
+package com.example.tariffs.repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import com.example.tariffs.entity.Tariff;
+import com.example.tariffs.entity.TariffId;
+
+
+// // provides a layer of abstraction for the database operations for the tariff entity, and provides a clean interface for the service layer to use
+public interface TariffRepository extends JpaRepository<Tariff, TariffId> {
+    @Query(value = "SELECT * FROM \"Tariff Rates (Test)\" WHERE \"country\" = ?1 AND \"partner\" = ?2", nativeQuery = true)
+    Optional<Tariff> findByCountryAndPartner(String country, String partner);
+    
+    @Query(value = "SELECT DISTINCT \"country\" FROM \"Tariff Rates (Test)\" ORDER BY \"country\"", nativeQuery = true)
+    List<String> findDistinctCountries();
+    
+    @Query(value = "SELECT DISTINCT \"partner\" FROM \"Tariff Rates (Test)\" ORDER BY \"partner\"", nativeQuery = true)
+    List<String> findDistinctPartners();
+
+    @Query(value = "SELECT DISTINCT \"country\" FROM \"Tariff Rates (Test)\"", nativeQuery = true)
+    List<String> findAllDistinctCountries();
+
+    @Query(value = "SELECT DISTINCT \"partner\" FROM \"Tariff Rates (Test)\"", nativeQuery = true)
+    List<String> findAllDistinctPartners();
+
+
+
+
+}
+
