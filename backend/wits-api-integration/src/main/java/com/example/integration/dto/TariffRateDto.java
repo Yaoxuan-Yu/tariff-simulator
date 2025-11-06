@@ -4,6 +4,10 @@ package com.example.integration.dto;
 public class TariffRateDto {
     private String country;
     private String partner;
+// added
+    // private int year;
+    // private String hsCode;
+
     private double ahsWeighted;
     private double mfnWeighted;
     private Double productCost;
@@ -13,8 +17,12 @@ public class TariffRateDto {
     public TariffRateDto(String country, String partner, double ahsWeighted, double mfnWeighted) {
         this.country = country;
         this.partner = partner;
+        // this.year = year;
+        // this.hsCode = hsCode;
         this.ahsWeighted = ahsWeighted;
         this.mfnWeighted = mfnWeighted;
+        
+        
     }
 
     public TariffRateDto(String country, String partner, double ahsWeighted, double mfnWeighted, Double productCost) {
