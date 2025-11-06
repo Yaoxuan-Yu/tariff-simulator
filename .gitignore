@@ -352,5 +352,6 @@ frontend/.env.*
 
 # Backend subproject outputs (safety)
 backend/target/
+**/target/
 backend/.env
 backend/.env.*
