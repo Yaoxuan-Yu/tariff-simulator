@@ -8,9 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import com.example.integration.dto.TariffRateDto;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -37,13 +39,24 @@ public class WitsApiService {
             JsonNode rootNode = objectMapper.readTree(apiResponse);
 
             JsonNode dataSets = rootNode.path("dataSets");
-            if (dataSets.isMissingNode() && !dataSets.isArray() && dataSets.size() == 0) {
-                return result; // No data (not error)
+            if (dataSets.isMissingNode() || !dataSets.isArray() || dataSets.size() == 0) {
+                return result; // No data
             }
 
             JsonNode seriesNode = dataSets.get(0).path("series");
             if (seriesNode.isMissingNode() || seriesNode.isEmpty()) {
-                return result; // No data (not error)
+                return result; // No data
+            }
+
+            // Fetch the observation year mapping from the structure
+            JsonNode obsYearsNode = rootNode.path("structure")
+                    .path("dimensions")
+                    .path("observation")
+                    .get(0)
+                    .path("values");
+            Map<Integer, Integer> indexToYearMap = new HashMap<>();
+            for (int i = 0; i < obsYearsNode.size(); i++) {
+                indexToYearMap.put(i, obsYearsNode.get(i).path("id").asInt());
             }
 
             Map<Integer, TariffRateDto> yearToTariffMap = new HashMap<>();
@@ -59,35 +72,31 @@ public class WitsApiService {
                 Iterator<Map.Entry<String, JsonNode>> obsIterator = observations.fields();
                 while (obsIterator.hasNext()) {
                     Map.Entry<String, JsonNode> obsEntry = obsIterator.next();
-                    String yearStr = obsEntry.getKey().split(":")[0];
-                    int year = Integer.parseInt(yearStr);
+                    int obsIndex = Integer.parseInt(obsEntry.getKey());
+                    int year = indexToYearMap.getOrDefault(obsIndex, 0); // fallback if mapping missing
 
                     JsonNode obsValues = obsEntry.getValue();
-                    Double ahsRate = obsValues.get(0).asDouble();
-                    Double mfnRate = obsValues.get(1).asDouble();
+                    double ahsRate = obsValues.get(0).asDouble();
+                    double mfnRate = obsValues.get(1).asDouble();
 
-                    yearToTariffMap.put(year, new TariffRateDto(reporterCode, partnerCode, ahsRate, mfnRate));
+                    yearToTariffMap.put(year, new TariffRateDto(reporterCode, partnerCode, hsCode, year, ahsRate, mfnRate));
                 }
             }
 
-            // Only add latest year data if exists
+            // Add only the latest year
             if (!yearToTariffMap.isEmpty()) {
                 int latestYear = Collections.max(yearToTariffMap.keySet());
                 result.add(yearToTariffMap.get(latestYear));
-                // Only log when data is found (avoid noise)
                 System.out.printf("[API Data Found] Reporter=%s, Partner=%s, HS Code=%s | Latest Year=%d%n",
                         reporterCode, partnerCode, hsCode, latestYear);
             }
 
-        } catch (Exception e) {
-            // Only log REAL errors (e.g., JSON parse error, connection timeout)
-            // String errorMsg = e.getMessage() != null ? e.getMessage().substring(0, Math.min(e.getMessage().length(), 80)) : "Unknown error";
-            // System.err.printf("[API Error] Reporter=%s, Partner=%s, HS Code=%s: %s%n",
-            //         reporterCode, partnerCode, hsCode, errorMsg);
+        } catch (JsonProcessingException | NumberFormatException | RestClientException e) {
+            // System.err.printf("[API Error] Reporter=%s, Partner=%s, HS Code=%s | %s%n",
+            //     reporterCode, partnerCode, hsCode, e.getMessage());
             return Collections.emptyList();
         }
 
         return result;
     }
-}
-
+    }

@@ -11,8 +11,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Configuration
 @EnableAsync
 public class AsyncConfig {
-    @Bean(name = "integrationExecutor")
-    public Executor integrationExecutor() {
+    @Bean(name = "tariffApiExecutor")
+    public Executor tariffApiExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(2);

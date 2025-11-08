@@ -1,15 +1,18 @@
 package com.example.api.gateway.controller;
 
+import java.util.List;
+
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.example.api.gateway.service.RoutingService;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -50,7 +53,6 @@ public class ProductRoutingController {
     }
 
     @GetMapping("/brands")
-    @SuppressWarnings("unchecked")
     public ResponseEntity<?> getBrands(HttpServletRequest request) {
         String queryString = request.getQueryString();
         HttpEntity<?> entity = routingService.createHttpEntity(request, null);

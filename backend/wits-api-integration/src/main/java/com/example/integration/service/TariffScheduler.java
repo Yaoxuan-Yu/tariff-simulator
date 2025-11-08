@@ -3,8 +3,8 @@ package com.example.integration.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.integration.entity.Product;
 import com.example.integration.repository.ProductRepository;
 import com.example.integration.repository.TariffRepository;
-import com.example.integration.service.TariffService;
 
 @Component
 public class TariffScheduler {
@@ -33,53 +32,39 @@ public class TariffScheduler {
         this.productRepository = productRepository;
     }
 
+@Async
     public void runUpdate() {
-        System.out.println("\n===== Tariff Data Update Task Started =====");
-        long startTime = System.currentTimeMillis();
+        System.out.println("===== Tariff Data Update Task Started =====");
 
-        // 同步查 DB（单独事务，查完释放连接）
-        List<String> uniqueReporters = fetchReporters();
-        List<String> uniquePartners = fetchPartners();
-        List<String> uniqueHsCodes = fetchHsCodes();
+        List<RequestCombination> requestCombinations = buildRequestCombinations();
 
-        // 生成请求组合
-        List<RequestCombination> requestCombinations = new ArrayList<>();
-        List<String> processedKeys = new ArrayList<>();
-        for (String reporterName : uniqueReporters) {
-            String reporterCode = COUNTRY_NAME_TO_CODE_MAP.get(reporterName);
-            if (reporterCode == null) continue;
-            for (String partnerName : uniquePartners) {
-                String partnerCode = COUNTRY_NAME_TO_CODE_MAP.get(partnerName);
-                if (partnerCode == null || reporterCode.equals(partnerCode)) continue;
-                for (String hsCode : uniqueHsCodes) {
-                    String key = reporterCode + "-" + partnerCode + "-" + hsCode;
-                    if (!processedKeys.contains(key)) {
-                        processedKeys.add(key);
-                        requestCombinations.add(new RequestCombination(reporterCode, partnerCode, hsCode));
-                    }
-                }
+        for (RequestCombination combo : requestCombinations) {
+            try {
+                tariffService.updateTariffsAsync(combo.reporterCode, combo.partnerCode, combo.hsCode);
+            } catch (Exception e) {
+                System.err.printf("[Error] %s-%s-%s: %s%n", combo.reporterCode, combo.partnerCode, combo.hsCode, e.getMessage());
             }
         }
 
-        // 异步发 API（2个并发）
-        CountDownLatch latch = new CountDownLatch(requestCombinations.size());
-        for (RequestCombination combo : requestCombinations) {
-            tariffService.updateTariffsAsync(combo.reporterCode, combo.partnerCode, combo.hsCode);
-            latch.countDown(); // 无需传参，直接计数
-        }
+        System.out.println("===== Tariff Data Update Task Triggered =====");
+    }
 
-        // 等待完成
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.err.printf("[Interrupted] Task stopped: %s%n", e.getMessage());
-        }
+    private List<RequestCombination> buildRequestCombinations() {
+        List<String> reporters = fetchReporters();
+        List<String> partners = fetchPartners();
+        List<String> hsCodes = fetchHsCodes();
 
-        // 总结
-        long totalTime = (System.currentTimeMillis() - startTime) / 1000;
-        System.out.printf("===== Tariff Data Update Task Completed =====");
-        System.out.printf("Total Requests: %d | Total Time: %ds%n", requestCombinations.size(), totalTime);
+        List<RequestCombination> combos = new ArrayList<>();
+        for (String r : reporters) {
+            for (String p : partners) {
+                if (r.equals(p)) continue;
+                for (String h : hsCodes) {
+                    combos.add(new RequestCombination(COUNTRY_NAME_TO_CODE_MAP.get(r),
+                            COUNTRY_NAME_TO_CODE_MAP.get(p), h));
+                }
+            }
+        }
+        return combos;
     }
 
     // 同步 DB 查询（单独事务，释放连接）
