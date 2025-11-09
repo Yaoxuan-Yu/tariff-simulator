@@ -50,3 +50,23 @@ Session history:
 GET /api/tariff/history → SessionRoutingController → session-management
 POST /api/tariff/history/save → SessionRoutingController → session-management (added)
 DELETE /api/tariff/history/clear → SessionRoutingController → session-management
+
+
+
+to add admin role using supabase:
+curl -X PATCH 'https://eommtatuhdmnkakktghz.supabase.co/auth/v1/admin/users/195452f5-450d-4e67-a655-8db4da641550'   -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvbW10YXR1aGRtbmtha2t0Z2h6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODI5NjEzMCwiZXhwIjoyMDczODcyMTMwfQ.c9xhPA5Hfm9aXdfPhn20mzdlNcH3olXaiJ5o8EoydS8"   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvbW10YXR1aGRtbmtha2t0Z2h6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODI5NjEzMCwiZXhwIjoyMDczODcyMTMwfQ.c9xhPA5Hfm9aXdfPhn20mzdlNcH3olXaiJ5o8EoydS8"   -H "Content-Type: application/json"   -d '{
+    "app_metadata": {
+      "role": "admin"
+    }
+  }'
+
+  or 
+
+UPDATE auth.users
+SET raw_app_meta_data = 
+  jsonb_set(
+    COALESCE(raw_app_meta_data, '{}'::jsonb),
+    '{role}',
+    '"admin"'
+  )
+WHERE email = 'kirthivasshni@gmail.com';

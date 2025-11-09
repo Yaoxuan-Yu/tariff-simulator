@@ -194,5 +194,48 @@ public class TariffRoutingController {
             response.getOutputStream().flush();
         }
     }
+
+    // Admin Dashboard Endpoints
+    @GetMapping("/admin/dashboard/stats")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<Map<String, Object>> getAdminDashboardStats(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+            routingService.getGlobalTariffsUrl(), 
+            "/api/admin/dashboard/stats", 
+            queryString
+        );
+        ResponseEntity<?> response = routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+        return (ResponseEntity<Map<String, Object>>) response;
+    }
+
+    @GetMapping("/admin/countries")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<java.util.List<String>> getAdminCountries(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+            routingService.getGlobalTariffsUrl(), 
+            "/api/admin/countries", 
+            queryString
+        );
+        ResponseEntity<?> response = routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+        return (ResponseEntity<java.util.List<String>>) response;
+    }
+
+    @GetMapping("/admin/products")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<java.util.List<String>> getAdminProducts(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+            routingService.getGlobalTariffsUrl(), 
+            "/api/admin/products", 
+            queryString
+        );
+        ResponseEntity<?> response = routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+        return (ResponseEntity<java.util.List<String>>) response;
+    }
 }
 

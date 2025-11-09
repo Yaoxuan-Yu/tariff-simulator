@@ -70,7 +70,13 @@ public class SecurityConfig {
                 // for api
                 .requestMatchers("/admin/test-update-tariffs").permitAll()
                 
-                // Allow anonymous access to API routes - backend services handle their own security
+                // Admin-only endpoints - require ADMIN role
+                .requestMatchers(HttpMethod.POST, "/api/tariff-definitions/modified").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/tariff-definitions/modified/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/tariff-definitions/modified/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/admin/**").hasRole("ADMIN")
+                
+                // Allow anonymous access to other API routes - backend services handle their own security
                 // JWT validation is optional (if token is provided, it will be validated)
                 .requestMatchers("/api/**").permitAll()
                 

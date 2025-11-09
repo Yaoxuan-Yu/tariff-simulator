@@ -70,16 +70,16 @@ public class TariffService {
                     double rate = hasFTA ? tariff.getAhsWeighted() : tariff.getMfnWeighted();
                     
                     if (hasFTA || tariff.getAhsWeighted().equals(tariff.getMfnWeighted())) {
-                        definitions.add(new TariffDefinitionsResponse.TariffDefinitionDto(
-                            String.valueOf(id++),
-                            productName,
-                            tariff.getPartner(),
-                            tariff.getCountry(),
-                            type,
-                            rate,
-                            "1/1/2022", // Default effective date
-                            "Ongoing"   // Default expiration date
-                        ));
+                    definitions.add(new TariffDefinitionsResponse.TariffDefinitionDto(
+                        String.valueOf(id++),
+                        productName,
+                        tariff.getPartner(),
+                        tariff.getCountry(),
+                        type,
+                        rate,
+                        "2022-01-01", // Default effective date (yyyy-MM-dd format)
+                        "Ongoing"   // Default expiration date
+                    ));
                     }
                 }
             }
@@ -110,46 +110,62 @@ public class TariffService {
             String importingTo = dto.getImportingTo();
             String exportingFrom = dto.getExportingFrom();
             
+            System.out.println("DEBUG: Adding tariff for " + importingTo + " <- " + exportingFrom);
+            
             Optional<Tariff> existingTariff = tariffRepository.findByCountryAndPartner(importingTo, exportingFrom);
+            
+            System.out.println("DEBUG: Existing tariff found: " + existingTariff.isPresent());
             
             Tariff tariff;
             if (existingTariff.isPresent()) {
                 // Update existing tariff
                 tariff = existingTariff.get();
+                System.out.println("DEBUG: Updating existing tariff");
             } else {
-                // Create new tariff
+                // Create new tariff with composite key using TariffId
                 tariff = new Tariff();
                 tariff.setCountry(importingTo);
                 tariff.setPartner(exportingFrom);
+                // Initialize both rates to avoid null issues
+                tariff.setAhsWeighted(0.0);
+                tariff.setMfnWeighted(0.0);
+                System.out.println("DEBUG: Creating new tariff");
             }
             
             // Set the rates based on type
             if ("AHS".equals(dto.getType())) {
                 tariff.setAhsWeighted(dto.getRate());
-                // Keep MFN rate if it exists, otherwise set to AHS rate
-                if (tariff.getMfnWeighted() == null) {
+                // If this is a new tariff and only AHS is specified, set MFN to same value
+                if (!existingTariff.isPresent() || tariff.getMfnWeighted() == null || tariff.getMfnWeighted() == 0.0) {
                     tariff.setMfnWeighted(dto.getRate());
                 }
             } else if ("MFN".equals(dto.getType())) {
                 tariff.setMfnWeighted(dto.getRate());
-                // Keep AHS rate if it exists, otherwise set to MFN rate
-                if (tariff.getAhsWeighted() == null) {
+                // If this is a new tariff and only MFN is specified, set AHS to same value
+                if (!existingTariff.isPresent() || tariff.getAhsWeighted() == null || tariff.getAhsWeighted() == 0.0) {
                     tariff.setAhsWeighted(dto.getRate());
                 }
             }
             
+            System.out.println("DEBUG: Saving tariff with AHS=" + tariff.getAhsWeighted() + ", MFN=" + tariff.getMfnWeighted());
+            
             // Save to database
-            tariffRepository.save(tariff);
+            Tariff savedTariff = tariffRepository.save(tariff);
+            
+            System.out.println("DEBUG: Tariff saved successfully");
             
             // Return the saved tariff as DTO
             TariffDefinitionsResponse.TariffDefinitionDto responseDto = 
-                convertToDto(tariff, dto.getProduct(), dto.getEffectiveDate(), dto.getExpirationDate(), dto.getType());
+                convertToDto(savedTariff, dto.getProduct(), dto.getEffectiveDate(), dto.getExpirationDate(), dto.getType());
             
             return new TariffDefinitionsResponse(true, List.of(responseDto));
         } catch (com.example.tariffs.exception.ValidationException e) {
+            System.err.println("DEBUG: Validation error: " + e.getMessage());
             throw e; // Re-throw validation exceptions
         } catch (Exception e) {
-            throw new com.example.tariffs.exception.DataAccessException("Failed to add admin-defined tariff", e);
+            System.err.println("DEBUG: Database error: " + e.getMessage());
+            e.printStackTrace();
+            throw new com.example.tariffs.exception.DataAccessException("Failed to add admin-defined tariff: " + e.getMessage(), e);
         }
     }
 

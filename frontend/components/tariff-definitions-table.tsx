@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Download, Plus, Trash2 } from "lucide-react"
+import { Download, Plus, Trash2, Pencil } from "lucide-react"
 
 interface TariffDefinition {
   id: string
@@ -56,6 +56,8 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
   const [userTariffs, setUserTariffs] = useState<TariffDefinition[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingTariff, setEditingTariff] = useState<TariffDefinition | null>(null)
   const [alertDialog, setAlertDialog] = useState({ open: false, title: "", message: "" })
 
   const [filters, setFilters] = useState({
@@ -161,6 +163,109 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
 
   const showAlert = (title: string, message: string) => {
     setAlertDialog({ open: true, title, message })
+  }
+
+  const handleEditTariff = (tariff: TariffDefinition) => {
+    setEditingTariff(tariff)
+    setNewTariff({
+      product: tariff.product,
+      exportingFrom: tariff.exportingFrom,
+      importingTo: tariff.importingTo,
+      type: tariff.type,
+      rate: tariff.rate.toString(),
+      effectiveDate: tariff.effectiveDate,
+      expirationDate: tariff.expirationDate,
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateTariff = async () => {
+    if (!editingTariff) return
+
+    // Validation
+    if (
+      !newTariff.product ||
+      !newTariff.exportingFrom ||
+      !newTariff.importingTo ||
+      !newTariff.type ||
+      !newTariff.rate ||
+      !newTariff.effectiveDate ||
+      !newTariff.expirationDate
+    ) {
+      showAlert("Incomplete Information", "Please fill in all required fields before submitting.")
+      return
+    }
+
+    const rateValue = Number.parseFloat(newTariff.rate)
+    if (isNaN(rateValue) || rateValue < 0) {
+      showAlert("Invalid Rate", "Please enter a valid positive number for the tariff rate.")
+      return
+    }
+
+    const payload = {
+      id: editingTariff.id,
+      product: newTariff.product,
+      exportingFrom: newTariff.exportingFrom,
+      importingTo: newTariff.importingTo,
+      type: newTariff.type,
+      rate: rateValue,
+      effectiveDate: newTariff.effectiveDate,
+      expirationDate: newTariff.expirationDate,
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      const endpoint = `http://localhost:8080/api/tariff-definitions/modified/${editingTariff.id}`
+
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) throw new Error(`Update tariff failed ${res.status}`)
+      const response: TariffDefinitionsResponse = await res.json()
+
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Update failed")
+      }
+
+      // Reload modified tariffs from backend
+      const modifiedRes = await fetch("http://localhost:8080/api/tariff-definitions/modified", {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      })
+      if (modifiedRes.ok) {
+        const modifiedData: TariffDefinitionsResponse = await modifiedRes.json()
+        if (modifiedData.success && modifiedData.data) {
+          setModifiedGlobalTariffs(modifiedData.data)
+        }
+      }
+
+      showAlert("Success", "Tariff has been successfully updated.")
+      setNewTariff({
+        product: "",
+        exportingFrom: "",
+        importingTo: "",
+        type: "",
+        rate: "",
+        effectiveDate: "",
+        expirationDate: "",
+      })
+      setEditingTariff(null)
+      setIsEditDialogOpen(false)
+    } catch (e) {
+      showAlert("Error", "Failed to update tariff. Please try again.")
+    }
   }
 
   const handleAddTariff = async () => {
@@ -396,7 +501,7 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Rate</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Effective Date</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Expiration Date</th>
-                  {showActions && <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>}
+                  {showActions && <th className="text-center py-3 px-4 font-medium text-muted-foreground">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -418,14 +523,26 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                     <td className="py-3 px-4 text-muted-foreground">{tariff.expirationDate}</td>
                     {showActions && (
                       <td className="py-3 px-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteTariff(tariff.id, isModifiedGlobal)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditTariff(tariff)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            title="Edit tariff"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTariff(tariff.id, isModifiedGlobal)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            title="Delete tariff"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -619,6 +736,149 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
             </Dialog>
           )}
         </div>
+
+        {/* Edit Dialog */}
+        {(userRole === "admin") && (
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Edit Tariff Definition</DialogTitle>
+                <DialogDescription>
+                  Update the tariff details below. Changes will be saved to the database.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
+                <div className="grid gap-2">
+                  <Label htmlFor="product">Product *</Label>
+                  <Select
+                    value={newTariff.product}
+                    onValueChange={(value) => setNewTariff((prev) => ({ ...prev, product: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product) => (
+                        <SelectItem key={product} value={product}>
+                          {product}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="exportingFrom">Exporting From *</Label>
+                  <Select
+                    value={newTariff.exportingFrom}
+                    onValueChange={(value) => setNewTariff((prev) => ({ ...prev, exportingFrom: value }))}
+                    disabled
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select exporting country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Country pair cannot be changed</p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="importingTo">Importing To *</Label>
+                  <Select
+                    value={newTariff.importingTo}
+                    onValueChange={(value) => setNewTariff((prev) => ({ ...prev, importingTo: value }))}
+                    disabled
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select importing country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Country pair cannot be changed</p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="type">Tariff Type *</Label>
+                  <Select
+                    value={newTariff.type}
+                    onValueChange={(value) => setNewTariff((prev) => ({ ...prev, type: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select tariff type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="AHS">AHS (Harmonized System)</SelectItem>
+                      <SelectItem value="MFN">MFN (Most Favored Nation)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="rate">Tariff Rate (%) *</Label>
+                  <Input
+                    id="rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="e.g., 5.25"
+                    value={newTariff.rate}
+                    onChange={(e) => setNewTariff((prev) => ({ ...prev, rate: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="effectiveDate">Effective Date *</Label>
+                  <Input
+                    id="effectiveDate"
+                    type="date"
+                    value={newTariff.effectiveDate}
+                    onChange={(e) => setNewTariff((prev) => ({ ...prev, effectiveDate: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="expirationDate">Expiration Date *</Label>
+                  <Input
+                    id="expirationDate"
+                    placeholder='e.g., "Ongoing" or "2025-12-31"'
+                    value={newTariff.expirationDate}
+                    onChange={(e) => setNewTariff((prev) => ({ ...prev, expirationDate: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Enter "Ongoing" for indefinite tariffs</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsEditDialogOpen(false)
+                    setEditingTariff(null)
+                    setNewTariff({
+                      product: "",
+                      exportingFrom: "",
+                      importingTo: "",
+                      type: "",
+                      rate: "",
+                      effectiveDate: "",
+                      expirationDate: "",
+                    })
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" onClick={handleUpdateTariff}>
+                  Update Tariff
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card className="mb-6">

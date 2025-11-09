@@ -9,6 +9,7 @@ import { ResultsTable } from "@/components/results-table"
 import { TariffDefinitionsTable } from "@/components/tariff-definitions-table"
 import { ExportCartWithHistory } from "@/components/export-cart-with-history"
 import { SimulatorCalculator } from "@/components/simulator-calculator"
+import { AdminDashboard } from "@/components/admin-dashboard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LogOut, User, Shield } from "lucide-react"
@@ -17,7 +18,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [authView, setAuthView] = useState<"login" | "signup">("login") // ADD THIS LINE
   const [calculationResults, setCalculationResults] = useState<any>(null)
-  const [currentView, setCurrentView] = useState<"dashboard" | "global-tariffs" | "simulator-tariffs" | "cart">("dashboard")
+  const [currentView, setCurrentView] = useState<"dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "admin">("dashboard")
   const [cartCount, setCartCount] = useState<number>(0)
 
   const handleLogin = (userData: any) => {
@@ -78,17 +79,17 @@ export default function Home() {
     const init = async () => {
       const { data } = await supabase.auth.getSession()
       if (data.session?.user) {
-        // Fetch user role from database
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('user_id', data.session.user.id)
-          .single()
+        // Get role from JWT token metadata (more secure and consistent with backend)
+        const role = (data.session.user.app_metadata?.role || 
+                     data.session.user.user_metadata?.role || 
+                     'user').toLowerCase()
         
         setUser({
           ...data.session.user,
-          role: profile?.role || 'user',
-          name: data.session.user.email?.split('@')[0] || 'User'
+          role: role,
+          name: data.session.user.user_metadata?.full_name || 
+                data.session.user.email?.split('@')[0] || 
+                'User'
         })
         
         // Fetch cart count
@@ -99,17 +100,17 @@ export default function Home() {
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        // Fetch user role from database
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single()
+        // Get role from JWT token metadata (more secure and consistent with backend)
+        const role = (session.user.app_metadata?.role || 
+                     session.user.user_metadata?.role || 
+                     'user').toLowerCase()
         
         setUser({
           ...session.user,
-          role: profile?.role || 'user',
-          name: session.user.email?.split('@')[0] || 'User'
+          role: role,
+          name: session.user.user_metadata?.full_name || 
+                session.user.email?.split('@')[0] || 
+                'User'
         })
         
         // Fetch cart count
@@ -192,7 +193,7 @@ export default function Home() {
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  Global Tariffs
+                  Tariff Definitions
                 </button>
                 <button
                   onClick={() => setCurrentView("simulator-tariffs")}
@@ -215,6 +216,17 @@ export default function Home() {
                 >
                   Export Cart ({cartCount})
                 </button>
+                {user.role === "admin" && (
+                  <button
+                    onClick={() => setCurrentView("admin")}
+                    className={`px-3 py-2 text-sm font-medium rounded-md flex items-center space-x-1 ${
+                      currentView === "admin" ? "bg-indigo-100 text-indigo-900" : "text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50"
+                    }`}
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span>Admin</span>
+                  </button>
+                )}
               </nav>
             </div>
 
@@ -320,6 +332,10 @@ export default function Home() {
             </div>
             <ExportCartWithHistory onCartCountChange={fetchCartCount} />
           </>
+        )}
+
+        {currentView === "admin" && user.role === "admin" && (
+          <AdminDashboard />
         )}
 
       </main>
