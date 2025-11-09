@@ -1,6 +1,8 @@
 package com.example.session.service;
 
 import com.example.session.dto.CalculationHistoryDto;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
@@ -9,6 +11,9 @@ import java.util.Map;
 
 @Service
 public class SessionHistoryService {
+    
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
     
     private static final String HISTORY_SESSION_KEY = "CALCULATION_HISTORY";
 
@@ -77,6 +82,37 @@ public class SessionHistoryService {
                 .filter(h -> h.getId().equals(calculationId))
                 .findFirst()
                 .orElse(null);
+    }
+    
+    // Get specific calculation from history by ID using session ID (for cross-service calls)
+    public CalculationHistoryDto getCalculationByIdFromSession(String sessionId, String calculationId) {
+        try {
+            if (redisTemplate == null) {
+                System.err.println("❌ RedisTemplate is null!");
+                return null;
+            }
+            
+            // Access Redis directly using the session ID
+            String sessionKey = "spring:session:sessions:" + sessionId;
+            Object historyObj = redisTemplate.opsForHash().get(sessionKey, "sessionAttr:" + HISTORY_SESSION_KEY);
+            
+            System.out.println("🔍 Looking up session: " + sessionKey);
+            System.out.println("🔍 Found history data: " + (historyObj != null));
+            
+            if (historyObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<CalculationHistoryDto> historyList = (List<CalculationHistoryDto>) historyObj;
+                return historyList.stream()
+                        .filter(h -> h.getId().equals(calculationId))
+                        .findFirst()
+                        .orElse(null);
+            }
+            return null;
+        } catch (Exception e) {
+            System.err.println("❌ Error accessing Redis: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     // Clear entire session history

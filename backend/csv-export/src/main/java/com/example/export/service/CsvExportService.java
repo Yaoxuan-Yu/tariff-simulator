@@ -1,6 +1,6 @@
 package com.example.export.service;
 
-import com.example.export.dto.CalculationHistoryDto;
+import com.example.session.dto.CalculationHistoryDto;
 import com.example.export.exception.ExportException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;

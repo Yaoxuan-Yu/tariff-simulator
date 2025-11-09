@@ -28,6 +28,10 @@ export function ResultsTable({ results, onAddToCart }: ResultsTableProps) {
 
       const data = results.data || results
       const calculationId = data.calculationId
+      
+      console.log("🔍 ResultsTable - Full results object:", results)
+      console.log("🔍 ResultsTable - Extracted data:", data)
+      console.log("🔍 ResultsTable - Calculation ID:", calculationId)
 
       if (!calculationId) {
         setExportError("Calculation ID not found. Please calculate again.")

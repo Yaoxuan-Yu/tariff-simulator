@@ -15,7 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.export.dto.CalculationHistoryDto;
+import com.example.session.dto.CalculationHistoryDto;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;

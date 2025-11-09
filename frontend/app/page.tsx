@@ -7,21 +7,17 @@ import { SignupForm } from "@/components/signup-form"
 import { TariffCalculatorForm } from "@/components/tariff-calculator-form"
 import { ResultsTable } from "@/components/results-table"
 import { TariffDefinitionsTable } from "@/components/tariff-definitions-table"
-import { ExportPage } from "@/components/export-page"
-import { SessionHistoryPage } from "@/components/session-history"
+import { ExportCartWithHistory } from "@/components/export-cart-with-history"
+import { SimulatorCalculator } from "@/components/simulator-calculator"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { LogOut, User, History, Shield } from "lucide-react"
+import { LogOut, User, Shield } from "lucide-react"
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [authView, setAuthView] = useState<"login" | "signup">("login") // ADD THIS LINE
   const [calculationResults, setCalculationResults] = useState<any>(null)
-  const [currentView, setCurrentView] = useState<"dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "history">("dashboard")
-  const [calculatorMode, setCalculatorMode] = useState<"global" | "simulator">("global")
-  const [sessionHistory, setSessionHistory] = useState<any[]>([])
-  const [exportCart, setExportCart] = useState<any[]>([])
+  const [currentView, setCurrentView] = useState<"dashboard" | "global-tariffs" | "simulator-tariffs" | "cart">("dashboard")
   const [cartCount, setCartCount] = useState<number>(0)
 
   const handleLogin = (userData: any) => {
@@ -36,8 +32,6 @@ export default function Home() {
     await supabase.auth.signOut()
     setUser(null)
     setCalculationResults(null)
-    setSessionHistory([])
-    setExportCart([])
   }
 
   // Fetch cart count from backend
@@ -145,28 +139,6 @@ export default function Home() {
     console.log('Processed calculation:', calculationWithId)
     
     setCalculationResults(calculationWithId)
-    
-    // Fetch updated history from backend
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      
-      const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
-        method: 'GET',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      })
-      
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json()
-        setSessionHistory(Array.isArray(historyData) ? historyData : [])
-      }
-    } catch (err) {
-      console.error("Error fetching history:", err)
-    }
   }
 
   const handleAddToCart = async (calculation: any) => {
@@ -185,30 +157,6 @@ export default function Home() {
   const handleClearCart = async () => {
     // ExportPage handles clearing via API, just refresh count here
     await fetchCartCount()
-  }
-
-  const handleClearHistory = async () => {
-    // Refresh history from backend
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      
-      const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
-        method: 'GET',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      })
-      
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json()
-        setSessionHistory(Array.isArray(historyData) ? historyData : [])
-      }
-    } catch (err) {
-      console.error("Error fetching history:", err)
-    }
   }
 
   if (!user) {
@@ -254,7 +202,7 @@ export default function Home() {
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
-                  Simulator Tariffs
+                  Tariff Simulator
                 </button>
                 <button
                   onClick={() => {
@@ -271,38 +219,6 @@ export default function Home() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button
-                onClick={async () => {
-                  setCurrentView("history")
-                  // Refresh history count when navigating to history
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession()
-                    const token = session?.access_token
-                    
-                    const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
-                      method: 'GET',
-                      headers: {
-                        'Authorization': token ? `Bearer ${token}` : '',
-                        'Content-Type': 'application/json'
-                      },
-                      credentials: 'include'
-                    })
-                    
-                    if (historyResponse.ok) {
-                      const historyData = await historyResponse.json()
-                      setSessionHistory(Array.isArray(historyData) ? historyData : [])
-                    }
-                  } catch (err) {
-                    console.error("Error fetching history:", err)
-                  }
-                }}
-                variant="outline"
-                size="sm"
-                className="flex items-center space-x-2 bg-transparent"
-              >
-                <History className="h-4 w-4" />
-                <span>Session History ({sessionHistory.length})</span>
-              </Button>
               <div className="flex items-center space-x-2 text-sm text-slate-600">
                 {user.role === "admin" ? <Shield className="h-4 w-4 text-accent" /> : <User className="h-4 w-4" />}
                 <span>{user.name}</span>
@@ -328,45 +244,14 @@ export default function Home() {
         {currentView === "dashboard" && (
           <>
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-3xl font-bold text-slate-900 mb-2">Tariff Calculator</h2>
-                  <p className="text-slate-600">Calculate import costs using global or simulated tariffs.</p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <label className="text-sm font-medium text-slate-700">Calculator Mode:</label>
-                  <Select
-                    value={calculatorMode}
-                    onValueChange={(value) => setCalculatorMode(value as "global" | "simulator")}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="global">Global Mode</SelectItem>
-                      <SelectItem value="simulator">Simulator Mode</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {calculatorMode === "simulator" && (
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <div className="h-3 w-3 bg-purple-500 rounded-full animate-pulse"></div>
-                    <h3 className="text-base font-semibold text-purple-900">Simulator Mode Active</h3>
-                  </div>
-                  <p className="text-sm text-purple-700">
-                    Using simulated tariffs. Define your tariffs in the Simulator Tariffs tab.
-                  </p>
-                </div>
-              )}
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">Tariff Calculator</h2>
+              <p className="text-slate-600">Calculate import costs using official global tariffs.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <TariffCalculatorForm
                 onCalculationComplete={handleCalculationComplete}
-                tariffSource={calculatorMode === "global" ? "global" : "user"}
+                tariffSource="global"
               />
 
               <Card>
@@ -417,45 +302,26 @@ export default function Home() {
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-6 mb-6">
               <div className="flex items-center space-x-2 mb-2">
                 <div className="h-3 w-3 bg-purple-500 rounded-full animate-pulse"></div>
-                <h2 className="text-2xl font-bold text-purple-900">Simulator Tariffs</h2>
+                <h2 className="text-2xl font-bold text-purple-900">Tariff Simulator</h2>
               </div>
               <p className="text-purple-700">
-                Define temporary tariffs for testing different scenarios. These tariffs are only available in Simulator
-                Mode and do not affect global data.
+                Test different tariff scenarios by entering custom parameters directly. Calculate import costs in real-time without affecting global data.
               </p>
             </div>
-            <TariffDefinitionsTable userRole={user.role} simulatorMode={true} />
+            <SimulatorCalculator />
           </>
         )}
 
         {currentView === "cart" && (
           <>
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Export Cart</h2>
-              <p className="text-slate-600">Manage and export your selected calculations.</p>
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">Export Cart & Session History</h2>
+              <p className="text-slate-600">Manage your cart and view session calculations. Add items from history to your cart for export.</p>
             </div>
-            <ExportPage />
+            <ExportCartWithHistory onCartCountChange={fetchCartCount} />
           </>
         )}
 
-        {currentView === "history" && (
-          <>
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">Session History</h2>
-                <p className="text-slate-600">View and manage your calculation history.</p>
-              </div>
-              <Button
-                onClick={() => setCurrentView("dashboard")}
-                variant="outline"
-                size="sm"
-              >
-                Back to Dashboard
-              </Button>
-            </div>
-            <SessionHistoryPage />
-          </>
-        )}
       </main>
     </div>
   )

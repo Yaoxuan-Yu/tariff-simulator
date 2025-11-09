@@ -61,11 +61,19 @@ public class SessionHistoryController {
     @GetMapping("/history/{id}")
     public ResponseEntity<CalculationHistoryDto> getCalculationById(
             @PathVariable String id,
+            @RequestParam(required = false) String sessionId,
             HttpSession session) {
+        System.out.println("📥 Session-Management received request for calculation: " + id);
+        System.out.println("📥 Provided sessionId param: " + sessionId);
+        System.out.println("📥 Current session ID: " + session.getId());
+        System.out.println("📥 Session is new: " + session.isNew());
+        
         if (id == null || id.trim().isEmpty()) {
             throw new com.example.session.exception.BadRequestException("Calculation ID is required");
         }
-        CalculationHistoryDto calculation = sessionHistoryService.getCalculationById(session, id);
+        
+        // If sessionId parameter is provided, use it to look up the calculation
+        CalculationHistoryDto calculation = sessionHistoryService.getCalculationByIdFromSession(sessionId != null ? sessionId : session.getId(), id);
         if (calculation == null) {
             throw new com.example.session.exception.NotFoundException("Calculation not found in history");
         }

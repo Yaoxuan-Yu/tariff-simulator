@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.export.dto.CalculationHistoryDto;
+import com.example.session.dto.CalculationHistoryDto;
 import com.example.export.service.ExportCartService;
 import com.example.export.service.CsvExportService;
 

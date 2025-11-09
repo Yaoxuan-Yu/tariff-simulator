@@ -1,4 +1,4 @@
-package com.example.export.dto;
+package com.example.session.dto;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;

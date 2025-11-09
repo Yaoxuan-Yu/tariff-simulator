@@ -14,7 +14,7 @@ import org.mockito.Mock;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.example.export.dto.CalculationHistoryDto;
+import com.example.session.dto.CalculationHistoryDto;
 import com.example.export.exception.BadRequestException;
 import com.example.export.exception.NotFoundException;
 import com.example.export.client.SessionManagementClient;

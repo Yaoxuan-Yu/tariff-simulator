@@ -1,6 +1,6 @@
 package com.example.export.service;
 
-import com.example.export.dto.CalculationHistoryDto;
+import com.example.session.dto.CalculationHistoryDto;
 import org.springframework.stereotype.Service;
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
@@ -21,8 +21,10 @@ public class ExportCartService {
      * Add calculation to export cart by calling session-management service via HTTP
      */
     public void addToCart(HttpSession session, String calculationId) {
-        // Call session-management service to get calculation by ID
-        CalculationHistoryDto calculation = sessionManagementClient.getCalculationById(calculationId);
+        // Call session-management service to get calculation by ID (pass session ID)
+        System.out.println("🔍 CSV-Export: Session ID = " + session.getId());
+        System.out.println("🔍 CSV-Export: Calculation ID = " + calculationId);
+        CalculationHistoryDto calculation = sessionManagementClient.getCalculationById(session.getId(), calculationId);
         
         if (calculation == null) {
             throw new com.example.export.exception.NotFoundException("Calculation not found in history");

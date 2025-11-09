@@ -1,8 +1,10 @@
 package com.example.export.client;
 
-import com.example.export.dto.CalculationHistoryDto;
+import com.example.session.dto.CalculationHistoryDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -27,12 +29,20 @@ public class SessionManagementClient {
     
     /**
      * Get calculation history by ID from session-management service
+     * Pass session ID in header to ensure session sharing works across microservices
      */
-    public CalculationHistoryDto getCalculationById(String calculationId) {
+    public CalculationHistoryDto getCalculationById(String sessionId, String calculationId) {
         try {
-            String url = sessionManagementUrl + "/api/tariff/history/" + calculationId;
-            ResponseEntity<CalculationHistoryDto> response = restTemplate.getForEntity(
-                url, 
+            // Pass session ID as URL parameter instead of cookie (works for service-to-service calls)
+            String url = sessionManagementUrl + "/api/tariff/history/" + calculationId + "?sessionId=" + sessionId;
+            
+            System.out.println("🌐 Calling session-management: " + url);
+            System.out.println("🔑 Session ID param: " + sessionId);
+            
+            ResponseEntity<CalculationHistoryDto> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                null,
                 CalculationHistoryDto.class
             );
             

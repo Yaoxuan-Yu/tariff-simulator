@@ -1,6 +1,6 @@
 package com.example.export.model;
 
-import com.example.export.dto.CalculationHistoryDto;
+import com.example.session.dto.CalculationHistoryDto;
 import java.util.ArrayList;
 import java.util.List;
 
