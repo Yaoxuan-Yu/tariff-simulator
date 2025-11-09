@@ -79,4 +79,20 @@ public class SessionHistoryController {
         }
         return ResponseEntity.ok(calculation);
     }
+
+    @Operation(summary = "Remove a specific calculation by ID from session history")
+    @DeleteMapping("/history/{id}")
+    public ResponseEntity<?> removeCalculationById(
+            @PathVariable String id,
+            @RequestParam(required = false) String sessionId,
+            HttpSession session) {
+        if (id == null || id.trim().isEmpty()) {
+            throw new com.example.session.exception.BadRequestException("Calculation ID is required");
+        }
+        
+        // Use provided sessionId if available, otherwise use current session
+        String targetSessionId = sessionId != null ? sessionId : session.getId();
+        sessionHistoryService.removeCalculationByIdFromSession(targetSessionId, id);
+        return ResponseEntity.ok().build();
+    }
 }

@@ -191,31 +191,43 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
       const result = await response.json()
       
       if (result.success && result.data) {
-        // Fetch the latest calculation from history to get the ID
+        // Save to session history and get backend-generated ID (same as simulator)
         try {
-          const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
-            method: 'GET',
+          const calculationData = {
+            calculationData: {
+              success: true,
+              data: {
+                ...result.data,
+                source: "global"  // Mark this calculation as from global/dashboard
+              }
+            }
+          }
+
+          const historyResponse = await fetch('http://localhost:8080/api/tariff/history/save', {
+            method: 'POST',
             headers: {
               'Authorization': token ? `Bearer ${token}` : '',
               'Content-Type': 'application/json'
             },
-            credentials: 'include'
+            credentials: 'include',
+            body: JSON.stringify(calculationData)
           })
-          
+
           if (historyResponse.ok) {
-            const historyData = await historyResponse.json()
-            if (Array.isArray(historyData) && historyData.length > 0) {
-              // Get the most recent calculation (first in array)
-              const latestCalculation = historyData[0]
-              // Attach the calculation ID to the result
-              result.data.calculationId = latestCalculation.id
-              result.data.calculationDate = latestCalculation.createdAt
-            }
+            const savedCalculation = await historyResponse.json()
+            console.log("✅ Dashboard - Saved to history successfully:", savedCalculation)
+            // The backend returns the saved calculation with an ID
+            result.data.calculationId = savedCalculation.id || savedCalculation.calculationId
+            result.data.calculationDate = savedCalculation.createdAt
+          } else {
+            const errorText = await historyResponse.text()
+            console.error("❌ Dashboard - Failed to save to history:", historyResponse.status, errorText)
           }
         } catch (err) {
-          console.warn("Could not fetch calculation ID from history:", err)
+          console.error("❌ Dashboard - Error saving to history:", err)
         }
         
+        console.log("📊 Dashboard - Final calculation with ID:", result.data.calculationId)
         onCalculationComplete(result.data)
       } else {
         setError(result.error || "Calculation failed")

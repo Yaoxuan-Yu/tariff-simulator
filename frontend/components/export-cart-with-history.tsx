@@ -29,6 +29,7 @@ interface CartItem {
   productCost: number
   totalCost: number
   tariffType: string
+  source?: string  // "global" or "simulator"
   calculationDate: string
   breakdown?: Array<{
     description: string
@@ -211,6 +212,10 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
         setSelectedCartItems(new Set())
         await loadCartItems()
         await loadHistory() // Refresh to show items back in history
+        // Notify parent to update cart count
+        if (onCartCountChange) {
+          onCartCountChange()
+        }
       }
     } catch (err) {
       console.error("Error deleting items:", err)
@@ -247,6 +252,10 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
       setSelectedCartItems(new Set())
       await loadCartItems()
       await loadHistory()
+      // Notify parent to update cart count
+      if (onCartCountChange) {
+        onCartCountChange()
+      }
     } catch (err) {
       console.error("Error clearing cart:", err)
       setError("Failed to clear cart")
@@ -415,8 +424,18 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
                                 />
                               </td>
                               <td className="py-3 px-4">
-                                <div className="font-medium text-foreground">
-                                  {item.productName} <span className="text-muted-foreground">({item.brand})</span>
+                                <div className="flex flex-col gap-1.5">
+                                  <div className="font-medium text-foreground">
+                                    {item.productName} <span className="text-muted-foreground">({item.brand})</span>
+                                  </div>
+                                  {item.source && (
+                                    <Badge 
+                                      variant="secondary"
+                                      className="text-xs h-6 px-2.5 font-medium w-fit capitalize"
+                                    >
+                                      {item.source}
+                                    </Badge>
+                                  )}
                                 </div>
                               </td>
                             <td className="py-3 px-4 text-muted-foreground text-sm">
@@ -522,7 +541,15 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
                             <div className="font-medium text-sm text-foreground truncate">
                               {item.productName} <span className="text-muted-foreground">({item.brand})</span>
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">
+                            {item.source && (
+                              <Badge 
+                                variant="secondary"
+                                className="text-[10px] h-5 px-2 font-medium w-fit mt-1 capitalize"
+                              >
+                                {item.source}
+                              </Badge>
+                            )}
+                            <div className="text-xs text-muted-foreground mt-1.5">
                               {item.exportingFrom} → {item.importingTo}
                             </div>
                             <div className="flex items-center justify-between mt-2">

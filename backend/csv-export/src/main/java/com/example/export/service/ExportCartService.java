@@ -19,6 +19,7 @@ public class ExportCartService {
     
     /**
      * Add calculation to export cart by calling session-management service via HTTP
+     * Also removes the calculation from session history (MOVE operation, not COPY)
      */
     public void addToCart(HttpSession session, String calculationId) {
         // Call session-management service to get calculation by ID (pass session ID)
@@ -43,6 +44,15 @@ public class ExportCartService {
 
         cart.add(calculation);
         session.setAttribute(CART_SESSION_KEY, cart);
+        
+        // Remove from session history after successfully adding to cart (MOVE operation)
+        try {
+            sessionManagementClient.removeCalculationById(session.getId(), calculationId);
+            System.out.println("✅ Removed calculation from session history");
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to remove from session history: " + e.getMessage());
+            // Don't fail the operation if removal fails
+        }
     }
 
     // Remove calculation from export cart

@@ -148,7 +148,8 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
               totalCost: result.totalCost,
               tariffRate: result.tariffRate,
               tariffType: result.tariffType,
-              breakdown: result.breakdown
+              breakdown: result.breakdown,
+              source: "simulator"  // Mark this calculation as from simulator
             }
           }
         }

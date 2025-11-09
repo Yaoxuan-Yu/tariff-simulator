@@ -17,12 +17,14 @@ public class CalculationHistoryDto implements Serializable {
     private Double tariffAmount;
     private Double totalCost;
     private String tariffType;
+    private String source; // "global" or "simulator"
     private LocalDateTime createdAt;
 
 
     public CalculationHistoryDto() {
         this.id = java.util.UUID.randomUUID().toString();
         this.createdAt = LocalDateTime.now();
+        this.source = "global"; // default to global
     }
 
     public CalculationHistoryDto(String productName, String brand, String exportingFrom,
@@ -81,7 +83,8 @@ public class CalculationHistoryDto implements Serializable {
     public String getTariffType() { return tariffType; }
     public void setTariffType(String tariffType) { this.tariffType = tariffType; }
 
-  
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
