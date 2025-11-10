@@ -404,7 +404,8 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
             </Alert>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Row 1: Product + Quantity + Calculation Date */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Product</label>
               <Select value={formData.product} onValueChange={(value) => handleInputChange("product", value)}>
@@ -422,26 +423,28 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Brand</label>
-              <Select
-                value={formData.brand}
-                onValueChange={(value) => handleInputChange("brand", value)}
-                disabled={!formData.product}
-              >
-                <SelectTrigger className="w-full h-10">
-                  <SelectValue placeholder="Select a brand" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableBrands.map((product) => (
-                    <SelectItem key={getBrandKey(product)} value={product.brand}>
-                      {formatBrandOption(product)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium text-muted-foreground">{getQuantityLabel()}</label>
+              <Input
+                type="number"
+                value={formData.quantity}
+                onChange={(e) => handleInputChange("quantity", e.target.value)}
+                placeholder={getQuantityPlaceholder()}
+                min={MINIMUM_QUANTITY}
+                step={QUANTITY_STEP}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Calculation Date</label>
+              <Input
+                type="date"
+                value={formData.calculationDate}
+                onChange={(e) => handleInputChange("calculationDate", e.target.value)}
+              />
             </div>
           </div>
 
+          {/* Row 2: Exporting + Importing */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Exporting From</label>
@@ -464,7 +467,10 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Importing To</label>
-              <Select value={formData.importingTo} onValueChange={(value) => handleInputChange("importingTo", value)}>
+              <Select
+                value={formData.importingTo}
+                onValueChange={(value) => handleInputChange("importingTo", value)}
+              >
                 <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
@@ -479,21 +485,10 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">
-                {getQuantityLabel()}
-              </label>
-              <Input
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange("quantity", e.target.value)}
-                placeholder={getQuantityPlaceholder()}
-                min={MINIMUM_QUANTITY}
-                step={QUANTITY_STEP}
-              />
-            </div>
 
+
+          {/* Row 3: Custom Cost + Currency */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Custom Cost (USD)</label>
               <Input
@@ -507,15 +502,37 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Calculation Date</label>
-              <Input
-                type="date"
-                value={formData.calculationDate}
-                onChange={(e) => handleInputChange("calculationDate", e.target.value)}
-              />
+              <label className="text-sm font-medium text-muted-foreground">Currency</label>
+              <Select
+                value={formData.currency || ""}
+                onValueChange={(value) => handleInputChange("currency", value)}
+              >
+                <SelectTrigger className="w-full h-10">
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableBrands.map((brand) => (
+                    brand.currency && (
+                      <SelectItem key={brand.currency} value={brand.currency}>
+                        {brand.currency}
+                      </SelectItem>
+                    )
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
+          {/* Row 4: Small span (Currency latest update) */}
+          <div>
+            <span className="text-xs text-muted-foreground">
+              {availableBrands[0]?.currencyUpdatedAt
+                ? `Currency latest update: ${availableBrands[0].currencyUpdatedAt}`
+                : "Currency latest update: N/A"}
+            </span>
+          </div>
+
+          {/* Submit Button */}
           <Button
             type="submit"
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
@@ -524,6 +541,7 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
             {getSubmitButtonText()}
           </Button>
         </form>
+
       </CardContent>
     </Card>
   )
