@@ -9,6 +9,7 @@ import { ResultsTable } from "@/components/results-table"
 import { TariffDefinitionsTable } from "@/components/tariff-definitions-table"
 import { ExportPage } from "@/components/export-page"
 import { SessionHistoryPage } from "@/components/session-history"
+import { TariffTrendsVisualization } from "@/components/tariff-trends-visualization"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -373,19 +374,13 @@ export default function Home() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl font-semibold text-slate-900">Historical Data</CardTitle>
+                  <CardTitle className="text-xl font-semibold text-slate-900">Historical Trends</CardTitle>
                   <CardDescription>
-                    Showing total import cost trends over time for {getCalculationProductName()} from {getCalculationExportingFrom()} to {getCalculationImportingTo()}.
+                    Visualize tariff changes over time for {getCalculationProductName()} from {getCalculationExportingFrom()} to {getCalculationImportingTo()}.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-center h-48 bg-slate-50 rounded-lg">
-                    <p className="text-slate-500">
-                      {calculationResults
-                        ? "Historical data visualization would appear here"
-                        : "No historical data available for this selection."}
-                    </p>
-                  </div>
+                  <TariffTrendsVisualization />
                 </CardContent>
               </Card>
             </div>
