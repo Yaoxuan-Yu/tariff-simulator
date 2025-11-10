@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import supabase from "@/lib/supabaseClient"
 
+
 interface TariffCalculatorFormProps {
   onCalculationComplete: (results: any) => void
   tariffSource: "global" | "user"
@@ -142,18 +143,18 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
       const brands = Array.isArray(brandsData) ? brandsData : []
       setAvailableBrands(brands)
       
-      autoSelectSingleBrand(brands)
+      // autoSelectSingleBrand(brands)
     } catch (error) {
       console.error('Error loading brands:', error)
       setAvailableBrands([])
     }
   }
 
-  const autoSelectSingleBrand = (brands: any[]) => {
-    if (brands.length === 1 && brands[0]?.brand) {
-      setFormData((prev) => ({ ...prev, brand: brands[0].brand }))
-    }
-  }
+  // const autoSelectSingleBrand = (brands: any[]) => {
+  //   if (brands.length === 1 && brands[0]?.brand) {
+  //     setFormData((prev) => ({ ...prev, brand: brands[0].brand }))
+  //   }
+  // }
 
   const handleProductChange = (value: string) => {
     setFormData((prev) => ({ ...prev, product: value, brand: "" }))
@@ -172,7 +173,7 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
   const validateRequiredFields = (): boolean => {
     if (
       !formData.product ||
-      !formData.brand ||
+      // !formData.brand ||
       !formData.exportingFrom ||
       !formData.importingTo ||
       !formData.quantity
@@ -198,7 +199,7 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
   const buildQueryParams = (): URLSearchParams => {
     const params = new URLSearchParams({
       product: formData.product,
-      brand: formData.brand,
+      // brand: formData.brand,
       exportingFrom: formData.exportingFrom,
       importingTo: formData.importingTo,
       quantity: formData.quantity,

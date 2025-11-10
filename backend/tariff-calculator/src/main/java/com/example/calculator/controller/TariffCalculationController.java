@@ -1,19 +1,23 @@
 package com.example.calculator.controller;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
 
-import com.example.calculator.dto.TariffResponse;
-import com.example.calculator.service.TariffService;
-import com.example.calculator.service.ModeManager;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.calculator.client.SessionManagementClient;
+import com.example.calculator.dto.TariffResponse;
+import com.example.calculator.service.ModeManager;
+import com.example.calculator.service.TariffService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import java.util.HashMap;
-import java.util.Map;
+import jakarta.servlet.http.HttpSession;
 
 @RestController
 @Tag(name = "Tariff Calculation", description = "API endpoints for tariff calculations")
