@@ -1,14 +1,12 @@
 package com.example.calculator.service;
-import com.example.calculator.dto.TariffResponse;
 import org.springframework.stereotype.Component;
+
+import com.example.calculator.dto.TariffResponse;
 
 // simulator mode is the mode that is used when the user wants to define their own tariff rules
 @Component
 public class SimulatorMode implements TariffMode {
-    private final TariffService tariffService;
-
     public SimulatorMode(TariffService tariffService) {
-        this.tariffService = tariffService;
     }
 
     @Override
@@ -16,7 +14,7 @@ public class SimulatorMode implements TariffMode {
         String importCountry,
         String exportCountry,
         String product,
-        String brand,
+        // String brand,
         double quantity,
         String customCost
     ) {
