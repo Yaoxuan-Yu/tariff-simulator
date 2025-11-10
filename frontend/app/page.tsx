@@ -14,12 +14,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LogOut, User, History, Shield } from "lucide-react"
 
+type AuthView = "login" | "signup"
+type DashboardView = "dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "history"
+type CalculatorMode = "global" | "simulator"
+
+const API_BASE_URL = "http://localhost:8080/api"
+const EMPTY_CART_STATUS = 204
+
 export default function Home() {
   const [user, setUser] = useState<any>(null)
-  const [authView, setAuthView] = useState<"login" | "signup">("login") // ADD THIS LINE
+  const [authView, setAuthView] = useState<AuthView>("login")
   const [calculationResults, setCalculationResults] = useState<any>(null)
-  const [currentView, setCurrentView] = useState<"dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "history">("dashboard")
-  const [calculatorMode, setCalculatorMode] = useState<"global" | "simulator">("global")
+  const [currentView, setCurrentView] = useState<DashboardView>("dashboard")
+  const [calculatorMode, setCalculatorMode] = useState<CalculatorMode>("global")
   const [sessionHistory, setSessionHistory] = useState<any[]>([])
   const [exportCart, setExportCart] = useState<any[]>([])
   const [cartCount, setCartCount] = useState<number>(0)
@@ -40,86 +47,91 @@ export default function Home() {
     setExportCart([])
   }
 
-  // Fetch cart count from backend
+  const getAuthToken = async (): Promise<string> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token || ""
+  }
+
+  const createAuthHeaders = (token: string): Record<string, string> => {
+    return {
+      'Authorization': token ? `Bearer ${token}` : '',
+      'Content-Type': 'application/json'
+    }
+  }
+
+  const parseCartResponse = async (response: Response): Promise<number> => {
+    if (response.status === EMPTY_CART_STATUS || !response.ok) {
+      return 0
+    }
+
+    const contentType = response.headers.get('content-type')
+    if (!contentType || !contentType.includes('application/json')) {
+      return 0
+    }
+
+    try {
+      const cartData = await response.json()
+      return Array.isArray(cartData) ? cartData.length : 0
+    } catch (parseError) {
+      console.error("Error parsing cart data:", parseError)
+      return 0
+    }
+  }
+
   const fetchCartCount = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      
-      const response = await fetch('http://localhost:8080/api/export-cart', {
+      const token = await getAuthToken()
+      const response = await fetch(`${API_BASE_URL}/export-cart`, {
         method: 'GET',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        },
+        headers: createAuthHeaders(token),
         credentials: 'include'
       })
       
-      if (response.status === 204 || !response.ok) {
-        // Empty cart or error
-        setCartCount(0)
-      } else if (response.ok) {
-        // Check if response has content before parsing
-        const contentType = response.headers.get('content-type')
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            const cartData = await response.json()
-            setCartCount(Array.isArray(cartData) ? cartData.length : 0)
-          } catch (parseError) {
-            console.error("Error parsing cart data:", parseError)
-            setCartCount(0)
-          }
-        } else {
-          // No JSON content
-          setCartCount(0)
-        }
-      }
+      const count = await parseCartResponse(response)
+      setCartCount(count)
     } catch (err) {
       console.error("Error fetching cart count:", err)
       setCartCount(0)
     }
   }
 
+  const fetchUserProfile = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', userId)
+      .single()
+    
+    return profile?.role || 'user'
+  }
+
+  const createUserObject = (sessionUser: any, role: string) => {
+    return {
+      ...sessionUser,
+      role,
+      name: sessionUser.email?.split('@')[0] || 'User'
+    }
+  }
+
+  const initializeUser = async (sessionUser: any) => {
+    const role = await fetchUserProfile(sessionUser.id)
+    const userObject = createUserObject(sessionUser, role)
+    setUser(userObject)
+    await fetchCartCount()
+  }
+
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getSession()
       if (data.session?.user) {
-        // Fetch user role from database
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('user_id', data.session.user.id)
-          .single()
-        
-        setUser({
-          ...data.session.user,
-          role: profile?.role || 'user',
-          name: data.session.user.email?.split('@')[0] || 'User'
-        })
-        
-        // Fetch cart count
-        fetchCartCount()
+        await initializeUser(data.session.user)
       }
     }
     init()
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        // Fetch user role from database
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single()
-        
-        setUser({
-          ...session.user,
-          role: profile?.role || 'user',
-          name: session.user.email?.split('@')[0] || 'User'
-        })
-        
-        // Fetch cart count
-        fetchCartCount()
+        await initializeUser(session.user)
       } else {
         setUser(null)
         setCartCount(0)
@@ -131,32 +143,26 @@ export default function Home() {
     }
   }, [])
 
-  const handleCalculationComplete = async (results: any) => {
-    console.log('Raw calculation results:', results)
-    
-    // The TariffCalculatorForm already fetches the calculation ID from backend history
-    // Wrap it properly with metadata
-    const calculationWithId = {
-      data: results, // This is the actual calculation data from backend
-      calculationId: results.calculationId || `calc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  const generateCalculationId = (): string => {
+    const timestamp = Date.now()
+    const random = Math.random().toString(36).substr(2, 9)
+    return `calc_${timestamp}_${random}`
+  }
+
+  const wrapCalculationWithMetadata = (results: any) => {
+    return {
+      data: results,
+      calculationId: results.calculationId || generateCalculationId(),
       calculationDate: results.calculationDate || new Date().toISOString()
     }
-    
-    console.log('Processed calculation:', calculationWithId)
-    
-    setCalculationResults(calculationWithId)
-    
-    // Fetch updated history from backend
+  }
+
+  const fetchCalculationHistory = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      
-      const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
+      const token = await getAuthToken()
+      const historyResponse = await fetch(`${API_BASE_URL}/tariff/history`, {
         method: 'GET',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        },
+        headers: createAuthHeaders(token),
         credentials: 'include'
       })
       
@@ -169,57 +175,91 @@ export default function Home() {
     }
   }
 
+  const handleCalculationComplete = async (results: any) => {
+    console.log('Raw calculation results:', results)
+    
+    const calculationWithId = wrapCalculationWithMetadata(results)
+    console.log('Processed calculation:', calculationWithId)
+    
+    setCalculationResults(calculationWithId)
+    await fetchCalculationHistory()
+  }
+
   const handleAddToCart = async (calculation: any) => {
-    // The ResultsTable component now handles adding to cart directly via API
-    // This callback is kept for compatibility but the actual work is done in ResultsTable
-    // Refresh cart count after adding
     await fetchCartCount()
     return true
   }
 
   const handleRemoveFromCart = async (calculationId: string) => {
-    // ExportPage handles removal via API, just refresh count here
     await fetchCartCount()
   }
 
   const handleClearCart = async () => {
-    // ExportPage handles clearing via API, just refresh count here
     await fetchCartCount()
   }
 
   const handleClearHistory = async () => {
-    // Refresh history from backend
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      
-      const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
-        method: 'GET',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      })
-      
-      if (historyResponse.ok) {
-        const historyData = await historyResponse.json()
-        setSessionHistory(Array.isArray(historyData) ? historyData : [])
-      }
-    } catch (err) {
-      console.error("Error fetching history:", err)
+    await fetchCalculationHistory()
+  }
+
+  const navigateToHistory = async () => {
+    setCurrentView("history")
+    await fetchCalculationHistory()
+  }
+
+  const navigateToCart = async () => {
+    setCurrentView("cart")
+    await fetchCartCount()
+  }
+
+  const renderAuthView = () => {
+    if (authView === "login") {
+      return <LoginForm onLogin={handleLogin} onSwitchToSignup={() => setAuthView("signup")} />
     }
+    return <SignupForm onSignup={handleSignup} onSwitchToLogin={() => setAuthView("login")} />
+  }
+
+  const getNavButtonClasses = (view: DashboardView): string => {
+    const baseClasses = "px-3 py-2 text-sm font-medium rounded-md"
+    const activeClasses = "bg-slate-100 text-slate-900"
+    const inactiveClasses = "text-slate-600 hover:text-slate-900"
+    return `${baseClasses} ${currentView === view ? activeClasses : inactiveClasses}`
+  }
+
+  const getUserDisplayName = (): string => {
+    return user?.name || 'User'
+  }
+
+  const getUserRoleLabel = (): string => {
+    return user?.role === "admin" ? "Admin" : "User"
+  }
+
+  const renderUserRoleIcon = () => {
+    return user?.role === "admin" 
+      ? <Shield className="h-4 w-4 text-accent" /> 
+      : <User className="h-4 w-4" />
+  }
+
+  const getCalculationProductName = (): string => {
+    return calculationResults?.data?.product || calculationResults?.product || "selected products"
+  }
+
+  const getCalculationExportingFrom = (): string => {
+    return calculationResults?.data?.exportingFrom || calculationResults?.exportingFrom || "various countries"
+  }
+
+  const getCalculationImportingTo = (): string => {
+    return calculationResults?.data?.importingTo || calculationResults?.importingTo || "destination countries"
+  }
+
+  const getTariffSource = (): "global" | "user" => {
+    return calculatorMode === "global" ? "global" : "user"
   }
 
   if (!user) {
-    if (authView === "login") {
-      return <LoginForm onLogin={handleLogin} onSwitchToSignup={() => setAuthView("signup")} />
-    } else {
-      return <SignupForm onSignup={handleSignup} onSwitchToLogin={() => setAuthView("login")} />
-    }
+    return renderAuthView()
   }
 
-  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white shadow-sm border-b">
@@ -230,40 +270,25 @@ export default function Home() {
               <nav className="flex space-x-4">
                 <button
                   onClick={() => setCurrentView("dashboard")}
-                  className={`px-3 py-2 text-sm font-medium rounded-md ${
-                    currentView === "dashboard" ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={getNavButtonClasses("dashboard")}
                 >
                   Dashboard
                 </button>
                 <button
                   onClick={() => setCurrentView("global-tariffs")}
-                  className={`px-3 py-2 text-sm font-medium rounded-md ${
-                    currentView === "global-tariffs"
-                      ? "bg-slate-100 text-slate-900"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={getNavButtonClasses("global-tariffs")}
                 >
                   Global Tariffs
                 </button>
                 <button
                   onClick={() => setCurrentView("simulator-tariffs")}
-                  className={`px-3 py-2 text-sm font-medium rounded-md ${
-                    currentView === "simulator-tariffs"
-                      ? "bg-slate-100 text-slate-900"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={getNavButtonClasses("simulator-tariffs")}
                 >
                   Simulator Tariffs
                 </button>
                 <button
-                  onClick={() => {
-                    setCurrentView("cart")
-                    fetchCartCount() // Refresh cart count when navigating to cart
-                  }}
-                  className={`px-3 py-2 text-sm font-medium rounded-md ${
-                    currentView === "cart" ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  onClick={navigateToCart}
+                  className={getNavButtonClasses("cart")}
                 >
                   Export Cart ({cartCount})
                 </button>
@@ -272,30 +297,7 @@ export default function Home() {
 
             <div className="flex items-center space-x-4">
               <Button
-                onClick={async () => {
-                  setCurrentView("history")
-                  // Refresh history count when navigating to history
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession()
-                    const token = session?.access_token
-                    
-                    const historyResponse = await fetch('http://localhost:8080/api/tariff/history', {
-                      method: 'GET',
-                      headers: {
-                        'Authorization': token ? `Bearer ${token}` : '',
-                        'Content-Type': 'application/json'
-                      },
-                      credentials: 'include'
-                    })
-                    
-                    if (historyResponse.ok) {
-                      const historyData = await historyResponse.json()
-                      setSessionHistory(Array.isArray(historyData) ? historyData : [])
-                    }
-                  } catch (err) {
-                    console.error("Error fetching history:", err)
-                  }
-                }}
+                onClick={navigateToHistory}
                 variant="outline"
                 size="sm"
                 className="flex items-center space-x-2 bg-transparent"
@@ -304,10 +306,10 @@ export default function Home() {
                 <span>Session History ({sessionHistory.length})</span>
               </Button>
               <div className="flex items-center space-x-2 text-sm text-slate-600">
-                {user.role === "admin" ? <Shield className="h-4 w-4 text-accent" /> : <User className="h-4 w-4" />}
-                <span>{user.name}</span>
+                {renderUserRoleIcon()}
+                <span>{getUserDisplayName()}</span>
                 <span className="text-xs bg-slate-100 px-2 py-1 rounded-full">
-                  {user.role === "admin" ? "Admin" : "User"}
+                  {getUserRoleLabel()}
                 </span>
               </div>
               <Button
@@ -337,7 +339,7 @@ export default function Home() {
                   <label className="text-sm font-medium text-slate-700">Calculator Mode:</label>
                   <Select
                     value={calculatorMode}
-                    onValueChange={(value) => setCalculatorMode(value as "global" | "simulator")}
+                    onValueChange={(value) => setCalculatorMode(value as CalculatorMode)}
                   >
                     <SelectTrigger className="w-[180px]">
                       <SelectValue />
@@ -366,16 +368,14 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <TariffCalculatorForm
                 onCalculationComplete={handleCalculationComplete}
-                tariffSource={calculatorMode === "global" ? "global" : "user"}
+                tariffSource={getTariffSource()}
               />
 
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl font-semibold text-slate-900">Historical Data</CardTitle>
                   <CardDescription>
-                    Showing total import cost trends over time for {calculationResults?.data?.product || calculationResults?.product || "selected products"}{" "}
-                    from {calculationResults?.data?.exportingFrom || calculationResults?.exportingFrom || "various countries"} to{" "}
-                    {calculationResults?.data?.importingTo || calculationResults?.importingTo || "destination countries"}.
+                    Showing total import cost trends over time for {getCalculationProductName()} from {getCalculationExportingFrom()} to {getCalculationImportingTo()}.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
