@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 
+// filter that validates supabase jwt tokens when the gateway receives one
 @Component
 public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -39,7 +40,7 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
         
         String path = request.getRequestURI();
 
-        if (path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/")) {
+        if (path.equals("/swagger-ui.html") || path.startsWith("/swagger-ui/")) { // let swagger assets through untouched
             filterChain.doFilter(request, response);
             return;
         }
@@ -55,11 +56,11 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
         // If JWT secret is configured and a token is provided, try to validate it
         // If validation fails or no token is provided, allow the request to continue
         // Spring Security will handle authorization based on permitAll() rules
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) { // token supplied, try to validate it
             String token = authHeader.substring(7);
             
             try {
-                Claims claims = Jwts.parser()
+                Claims claims = Jwts.parser() // parse and validate the jwt with configured secret
                     .verifyWith(getSigningKey())
                     .build()
                     .parseSignedClaims(token)
@@ -82,7 +83,7 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
                 if (userId != null && email != null && audienceOk && issuerOk) {
                     String userRole = extractRoleFromClaims(claims);
                     
-                    List<SimpleGrantedAuthority> authorities = Collections.singletonList(
+                    List<SimpleGrantedAuthority> authorities = Collections.singletonList( // convert role to granted authority
                         new SimpleGrantedAuthority(userRole)
                     );
                     
@@ -105,12 +106,12 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
     
-    private SecretKey getSigningKey() {
+    private SecretKey getSigningKey() { // derive signing key from configured secret
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private String extractRoleFromClaims(Claims claims) {
+    private String extractRoleFromClaims(Claims claims) { // pull role from supabase metadata
         Object appMetadata = claims.get("app_metadata");
         if (appMetadata instanceof java.util.Map) {
             @SuppressWarnings("unchecked")
@@ -134,7 +135,7 @@ public class SupabaseJwtAuthenticationFilter extends OncePerRequestFilter {
         return "ROLE_USER";
     }
     
-    public static class SupabaseUserDetails implements Serializable {
+    public static class SupabaseUserDetails implements Serializable { // lightweight user details stored in security context
         private static final long serialVersionUID = 1L;
         
         private final String userId;

@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+// routes export cart requests to the csv-export service
 @RestController
 @RequestMapping("/api/export-cart")
 @CrossOrigin(origins = "*")
@@ -23,6 +24,7 @@ public class ExportCartRoutingController {
         this.routingService = routingService;
     }
 
+    // GET /api/export-cart -> list cart entries
     @GetMapping
     @SuppressWarnings("unchecked")
     public ResponseEntity<List<Map<String, Object>>> getCart(HttpServletRequest request) {
@@ -37,6 +39,7 @@ public class ExportCartRoutingController {
         return (ResponseEntity<List<Map<String, Object>>>) response;
     }
 
+    // POST /api/export-cart/add/{id} -> add calculation to cart
     @PostMapping("/add/{calculationId}")
     public ResponseEntity<?> addToCart(
             @PathVariable String calculationId,
@@ -51,6 +54,7 @@ public class ExportCartRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.POST, entity, Object.class);
     }
 
+    // DELETE /api/export-cart/remove/{id} -> remove item from cart
     @DeleteMapping("/remove/{calculationId}")
     public ResponseEntity<?> removeFromCart(
             @PathVariable String calculationId,
@@ -65,6 +69,7 @@ public class ExportCartRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.DELETE, entity, Object.class);
     }
 
+    // DELETE /api/export-cart/clear -> clear entire cart
     @DeleteMapping("/clear")
     public ResponseEntity<?> clearCart(HttpServletRequest request) {
         String queryString = request.getQueryString();
@@ -77,6 +82,7 @@ public class ExportCartRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.DELETE, entity, Object.class);
     }
 
+    // GET /api/export-cart/export -> stream csv download
     @GetMapping("/export")
     public void exportCart(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String queryString = request.getQueryString();

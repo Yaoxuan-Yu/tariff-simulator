@@ -10,6 +10,7 @@ import com.example.api.gateway.service.RoutingService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 
+// routes tariff calculation and definition requests to downstream services
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
@@ -20,6 +21,7 @@ public class TariffRoutingController {
         this.routingService = routingService;
     }
 
+    // GET /api/tariff -> call tariff-calculator service
     @GetMapping("/tariff")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> calculateTariff(HttpServletRequest request) {
@@ -34,6 +36,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // GET /api/tariff-definitions/global -> global definitions from global-tariffs
     @GetMapping("/tariff-definitions/global")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> getGlobalTariffDefinitions(HttpServletRequest request) {
@@ -48,6 +51,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // GET /api/tariff-definitions/user -> session tariffs from simulator service
     @GetMapping("/tariff-definitions/user")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> getUserTariffDefinitions(HttpServletRequest request) {
@@ -62,6 +66,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // POST /api/tariff-definitions/user -> add session tariff definition
     @PostMapping("/tariff-definitions/user")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> addUserTariffDefinition(
@@ -78,6 +83,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // PUT /api/tariff-definitions/user/{id} -> update session tariff definition
     @PutMapping("/tariff-definitions/user/{id}")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> updateUserTariffDefinition(
@@ -95,6 +101,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // DELETE /api/tariff-definitions/user/{id} -> delete session tariff definition
     @DeleteMapping("/tariff-definitions/user/{id}")
     public ResponseEntity<?> deleteUserTariffDefinition(
             @PathVariable String id,
@@ -109,6 +116,7 @@ public class TariffRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.DELETE, entity, Object.class);
     }
 
+    // GET /api/tariff-definitions/modified -> fetch admin-modified definitions
     @GetMapping("/tariff-definitions/modified")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> getModifiedTariffDefinitions(HttpServletRequest request) {
@@ -123,6 +131,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // POST /api/tariff-definitions/modified -> create admin definition
     @PostMapping("/tariff-definitions/modified")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> addModifiedTariffDefinition(
@@ -139,6 +148,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // PUT /api/tariff-definitions/modified/{id} -> update admin definition
     @PutMapping("/tariff-definitions/modified/{id}")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> updateModifiedTariffDefinition(
@@ -156,6 +166,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // DELETE /api/tariff-definitions/modified/{id} -> delete admin definition
     @DeleteMapping("/tariff-definitions/modified/{id}")
     public ResponseEntity<?> deleteModifiedTariffDefinition(
             @PathVariable String id,
@@ -170,6 +181,7 @@ public class TariffRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.DELETE, entity, Object.class);
     }
 
+    // GET /api/tariff-definitions/export -> proxy csv export
     @GetMapping("/tariff-definitions/export")
     public void exportTariffDefinitions(HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
         String queryString = request.getQueryString();
@@ -196,6 +208,7 @@ public class TariffRoutingController {
     }
 
     // Admin Dashboard Endpoints
+    // GET /api/admin/dashboard/stats -> aggregate stats for admin UI
     @GetMapping("/admin/dashboard/stats")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> getAdminDashboardStats(HttpServletRequest request) {
@@ -210,6 +223,7 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    // GET /api/admin/countries -> list countries for admin dashboard
     @GetMapping("/admin/countries")
     @SuppressWarnings("unchecked")
     public ResponseEntity<java.util.List<String>> getAdminCountries(HttpServletRequest request) {
@@ -224,6 +238,7 @@ public class TariffRoutingController {
         return (ResponseEntity<java.util.List<String>>) response;
     }
 
+    // GET /api/admin/products -> list products for admin dashboard
     @GetMapping("/admin/products")
     @SuppressWarnings("unchecked")
     public ResponseEntity<java.util.List<String>> getAdminProducts(HttpServletRequest request) {

@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
+// routes session history endpoints to the session-management service
 @RestController
 @RequestMapping("/api/tariff")
 @CrossOrigin(origins = "*")
@@ -21,6 +22,7 @@ public class SessionRoutingController {
         this.routingService = routingService;
     }
 
+    // GET /api/tariff/history -> list history entries
     @GetMapping("/history")
     @SuppressWarnings("unchecked")
     public ResponseEntity<List<Map<String, Object>>> getCalculationHistory(HttpServletRequest request) {
@@ -35,6 +37,7 @@ public class SessionRoutingController {
         return (ResponseEntity<List<Map<String, Object>>>) response;
     }
 
+    // POST /api/tariff/history/save -> save calculation
     @PostMapping("/history/save")
     public ResponseEntity<?> saveCalculation(
             @RequestBody Map<String, Object> body,
@@ -49,6 +52,7 @@ public class SessionRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.POST, entity, Object.class);
     }
 
+    // DELETE /api/tariff/history/clear -> clear history for session
     @DeleteMapping("/history/clear")
     public ResponseEntity<?> clearCalculationHistory(HttpServletRequest request) {
         String queryString = request.getQueryString();

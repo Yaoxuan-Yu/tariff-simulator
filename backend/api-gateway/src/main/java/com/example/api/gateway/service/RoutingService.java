@@ -15,6 +15,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 
+// routing helpers used by controllers to forward requests to downstream services
 @Service
 public class RoutingService {
     private final RestTemplate restTemplate;
@@ -41,30 +42,37 @@ public class RoutingService {
         this.restTemplate = restTemplate;
     }
     // Getter methods for service URLs
+    // base url for product-service
     public String getProductServiceUrl() {
         return productServiceUrl;
     }
     
+    // base url for global-tariffs service
     public String getGlobalTariffsUrl() {
         return globalTariffsUrl;
     }
     
+    // base url for simulator-tariffs service
     public String getSimulatorTariffsUrl() {
         return simulatorTariffsUrl;
     }
     
+    // base url for tariff-calculator service
     public String getTariffCalculatorUrl() {
         return tariffCalculatorUrl;
     }
     
+    // base url for session-management service
     public String getSessionManagementUrl() {
         return sessionManagementUrl;
     }
     
+    // base url for csv-export service
     public String getCsvExportUrl() {
         return csvExportUrl;
     }
 
+    // run the outbound call using a string url
     public <T> ResponseEntity<T> forwardRequest(String targetUrl, HttpMethod method, 
             HttpEntity<?> requestEntity, Class<T> responseType) {
         // Use URI.create() to properly handle already-encoded URLs
@@ -72,11 +80,14 @@ public class RoutingService {
         return restTemplate.exchange(java.net.URI.create(targetUrl), method, requestEntity, responseType);
     }
     
+    // run the outbound call using a pre-built uri
     public <T> ResponseEntity<T> forwardRequest(URI targetUri, HttpMethod method, 
             HttpEntity<?> requestEntity, Class<T> responseType) {
         // Use the URI directly - already properly encoded by UriComponentsBuilder
         return restTemplate.exchange(targetUri, method, requestEntity, responseType);
     }
+
+    // clone request headers/cookies and attach body if present
     public HttpEntity<?> createHttpEntity(HttpServletRequest request, Object body) {
         HttpHeaders headers = new HttpHeaders();
         
@@ -116,6 +127,7 @@ public class RoutingService {
         return new HttpEntity<>(headers);
     }
 
+    // quick helper that just concatenates service url + path (+ query)
     public String buildTargetUrl(String serviceUrl, String path, String queryString) {
         String url = serviceUrl + path;
         if (queryString != null && !queryString.isEmpty()) {
@@ -124,11 +136,7 @@ public class RoutingService {
         return url;
     }
 
-    /**
-     * Build target URL with proper encoding/decoding of query parameters.
-     * This method properly handles URL-encoded query strings by decoding parameter values
-     * and re-encoding them using UriComponentsBuilder.
-     */
+    // helper that safely rebuilds a uri while re-encoding query params
     public URI buildTargetUri(String serviceUrl, String path, String queryString) {
         UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromHttpUrl(serviceUrl + path);
         

@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
+// routes product and country lookups to product-service
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
@@ -21,6 +22,7 @@ public class ProductRoutingController {
         this.routingService = routingService;
     }
 
+    // GET /api/products -> list products
     @GetMapping("/products")
     @SuppressWarnings("unchecked")
     public ResponseEntity<List<String>> getProducts(HttpServletRequest request) {
@@ -35,6 +37,7 @@ public class ProductRoutingController {
         return (ResponseEntity<List<String>>) response;
     }
 
+    // GET /api/countries -> list countries
     @GetMapping("/countries")
     @SuppressWarnings("unchecked")
     public ResponseEntity<List<String>> getCountries(HttpServletRequest request) {
@@ -49,6 +52,7 @@ public class ProductRoutingController {
         return (ResponseEntity<List<String>>) response;
     }
 
+    // GET /api/brands -> list brands for product
     @GetMapping("/brands")
     @SuppressWarnings("unchecked")
     public ResponseEntity<?> getBrands(HttpServletRequest request) {
