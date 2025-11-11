@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+// rest client used to fetch country/partner metadata from global-tariffs service
 @Component
 public class GlobalTariffsClient {
 
@@ -22,6 +23,7 @@ public class GlobalTariffsClient {
         this.restTemplate = restTemplate;
     }
 
+    // fetch importing countries from global-tariffs definitions
     public List<String> getAllCountries() {
         try {
             String url = globalTariffsUrl + "/api/tariff-definitions/global";
@@ -41,6 +43,7 @@ public class GlobalTariffsClient {
         }
     }
 
+    // fetch exporting partners from global-tariffs definitions
     public List<String> getAllPartners() {
         try {
             String url = globalTariffsUrl + "/api/tariff-definitions/global";

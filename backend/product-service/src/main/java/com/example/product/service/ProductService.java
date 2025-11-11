@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+// provides product/country/brand lookups and validates downstream responses
 @Service
 public class ProductService {
     private final ProductRepository productRepository;
@@ -19,18 +20,22 @@ public class ProductService {
         this.globalTariffsClient = globalTariffsClient;
     }
 
+    // list importing countries via global-tariffs service
     public List<String> getAllCountries() {
-      return globalTariffsClient.getAllCountries();
+        return globalTariffsClient.getAllCountries();
     }
 
+    // list exporting partners via global-tariffs service
     public List<String> getAllPartners() {
-      return globalTariffsClient.getAllPartners();
+        return globalTariffsClient.getAllPartners();
     }
 
+    // list local product names from repository
     public List<String> getAllProducts() {
         return productRepository.findDistinctProducts();
     }
 
+    // load brand information for a given product (validated)
     public List<BrandInfo> getBrandsByProduct(String product) {
         if (product == null || product.trim().isEmpty()) {
             throw new com.example.product.exception.ValidationException("Product name cannot be null or empty");
