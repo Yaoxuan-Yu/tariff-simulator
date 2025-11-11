@@ -1,6 +1,7 @@
 package com.example.integration.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -31,7 +32,11 @@ public interface TariffRepository extends JpaRepository<Tariff, TariffId> {
     @Query(value = "SELECT * FROM \"Tariff Rates (Test)\" WHERE \"hs_code\" = :hsCode", nativeQuery = true)
     List<Tariff> findByHsCode(@Param("hsCode") String hsCode);
 
+    Optional<Tariff> findByCountryAndPartnerAndHsCode(String country, String partner, String hsCode);
+
     // Optional: find by country, partner, hsCode, and year (returns single tariff)
     @Query(value = "SELECT * FROM \"Tariff Rates (Test)\" WHERE \"country\" = :country AND \"partner\" = :partner AND \"hs_code\" = :hsCode AND \"year\" = :year", nativeQuery = true)
     Tariff findOneByCountryPartnerHsCodeYear(@Param("country") String country, @Param("partner") String partner, @Param("hsCode") String hsCode, @Param("year") Integer year);
 }
+
+

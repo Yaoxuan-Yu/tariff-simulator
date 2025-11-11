@@ -206,11 +206,14 @@ services:
     environment:
       # Supabase Database Configuration (hosted PostgreSQL)
       # REQUIRED: Set SUPABASE_DATABASE_URL, SUPABASE_DATABASE_USERNAME, SUPABASE_DATABASE_PASSWORD
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
-      - SPRING_DATASOURCE_USERNAME=postgres.eommtatuhdmnkakktghz
-      - SPRING_DATASOURCE_PASSWORD=dDPRcsm4ccYFBAoJ
+      - SPRING_DATASOURCE_URL=${SUPABASE_DATABASE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SUPABASE_DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DATABASE_PASSWORD}
     networks:
       - microservices-network
+    volumes:
+      - ./wits-api-integration/src/main/resources/application.properties:/app/application.properties
+
     restart: unless-stopped
 
 volumes:

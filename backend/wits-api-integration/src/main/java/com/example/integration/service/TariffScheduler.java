@@ -32,7 +32,7 @@ public class TariffScheduler {
         this.productRepository = productRepository;
     }
 
-@Async
+    @Async
     public void runUpdate() {
         System.out.println("===== Tariff Data Update Task Started =====");
 
@@ -67,7 +67,7 @@ public class TariffScheduler {
         return combos;
     }
 
-    // 同步 DB 查询（单独事务，释放连接）
+    // Synchronous DB queries (separate transaction)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     private List<String> fetchReporters() {
         return tariffRepository.findAllDistinctCountries().stream().distinct().toList();
@@ -99,4 +99,3 @@ public class TariffScheduler {
         }
     }
 }
-

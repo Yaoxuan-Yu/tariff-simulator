@@ -24,7 +24,6 @@ public class Tariff implements Serializable {
     @Column(name = "\"hs_code\"")
     private String hsCode;
 
-    @Id
     @Column(name = "\"year\"")
     private int year;
 
