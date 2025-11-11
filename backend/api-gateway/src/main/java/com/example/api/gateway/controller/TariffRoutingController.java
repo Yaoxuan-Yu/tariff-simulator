@@ -48,6 +48,99 @@ public class TariffRoutingController {
         return (ResponseEntity<Map<String, Object>>) response;
     }
 
+    @GetMapping("/tariffs")
+    public ResponseEntity<?> getAllTariffs(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+                routingService.getTariffCalculatorUrl(),
+                "/api/tariffs",
+                queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+    }
+
+    @GetMapping("/tariffs/country/{country}")
+    public ResponseEntity<?> getTariffsByCountry(
+            @PathVariable String country,
+            HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+                routingService.getTariffCalculatorUrl(),
+                "/api/tariffs/country/" + country,
+                queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+    }
+
+    @GetMapping("/tariffs/{country}/{partner}")
+    public ResponseEntity<?> getTariffByCountryAndPartner(
+            @PathVariable String country,
+            @PathVariable String partner,
+            HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+                routingService.getTariffCalculatorUrl(),
+                "/api/tariffs/" + country + "/" + partner,
+                queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+    }
+
+    @PostMapping("/tariffs/compare")
+    public ResponseEntity<?> compareTariffs(
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, body);
+        String targetUrl = routingService.buildTargetUrl(
+                routingService.getTariffCalculatorUrl(),
+                "/api/tariffs/compare",
+                queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.POST, entity, Object.class);
+    }
+
+    @GetMapping("/tariffs/history")
+    public ResponseEntity<?> getTariffHistory(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+                routingService.getTariffCalculatorUrl(),
+                "/api/tariffs/history",
+                queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+    }
+
+    @GetMapping("/tariffs/currencies")
+    public ResponseEntity<?> getSupportedCurrencies(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+                routingService.getTariffCalculatorUrl(),
+                "/api/tariffs/currencies",
+                queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+    }
+
+    @GetMapping("/tariffs/exchange-rate/{currency}")
+    public ResponseEntity<?> getExchangeRate(
+            @PathVariable String currency,
+            HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+                routingService.getTariffCalculatorUrl(),
+                "/api/tariffs/exchange-rate/" + currency,
+                queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+    }
+
     @GetMapping("/tariff-definitions/user")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Map<String, Object>> getUserTariffDefinitions(HttpServletRequest request) {

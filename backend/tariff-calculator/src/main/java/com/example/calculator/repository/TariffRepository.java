@@ -12,6 +12,9 @@ import com.example.calculator.entity.TariffId;
 public interface TariffRepository extends JpaRepository<Tariff, TariffId> {
     @Query(value = "SELECT * FROM \"Tariff Rates (Test)\" WHERE \"country\" = ?1 AND \"partner\" = ?2", nativeQuery = true)
     Optional<Tariff> findByCountryAndPartner(String country, String partner);
+
+    @Query(value = "SELECT * FROM \"Tariff Rates (Test)\" WHERE \"country\" = ?1", nativeQuery = true)
+    List<Tariff> findByCountry(String country);
     
     @Query(value = "SELECT DISTINCT \"country\" FROM \"Tariff Rates (Test)\" ORDER BY \"country\"", nativeQuery = true)
     List<String> findDistinctCountries();

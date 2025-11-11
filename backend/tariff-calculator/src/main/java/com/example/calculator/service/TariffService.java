@@ -3,10 +3,12 @@ package com.example.calculator.service;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.example.calculator.dto.TariffDefinitionsResponse;
+import com.example.calculator.dto.TariffDTO;
 import com.example.calculator.dto.TariffResponse;
 import com.example.calculator.entity.Product;
 import com.example.calculator.entity.Tariff;
@@ -21,14 +23,17 @@ public class TariffService {
     private final TariffRepository tariffRepository;
     private final ProductRepository productRepository;
     private final SessionTariffService sessionTariffService;
+    private final CurrencyService currencyService;
 
     public TariffService(
             TariffRepository tariffRepository,
             ProductRepository productRepository,
-            SessionTariffService sessionTariffService) {
+            SessionTariffService sessionTariffService,
+            CurrencyService currencyService) {
         this.tariffRepository = tariffRepository;
         this.productRepository = productRepository;
         this.sessionTariffService = sessionTariffService;
+        this.currencyService = currencyService;
     }
 
     public TariffResponse calculateWithMode(
@@ -209,5 +214,82 @@ public class TariffService {
         );
 
         return ftaCountries.contains(importCountry) && ftaCountries.contains(exportCountry);
+    }
+
+    // Currency conversion methods
+    public List<TariffDTO> getAllTariffs(Double productCostUSD, String currency) {
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
+        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        List<Tariff> tariffs = tariffRepository.findAll();
+
+        return tariffs.stream()
+                .map(tariff -> convertTariffToDTO(tariff, costUSD, targetCurrency))
+                .collect(Collectors.toList());
+    }
+
+    public List<TariffDTO> getTariffsByCountry(String country, Double productCostUSD, String currency) {
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
+        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        List<Tariff> tariffs = tariffRepository.findByCountry(country);
+
+        return tariffs.stream()
+                .map(tariff -> convertTariffToDTO(tariff, costUSD, targetCurrency))
+                .collect(Collectors.toList());
+    }
+
+    public TariffDTO getTariffByCountryAndPartner(String country, String partner,
+                                                  Double productCostUSD, String currency) {
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
+        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        Tariff tariff = tariffRepository.findByCountryAndPartner(country, partner)
+                .orElse(null);
+
+        if (tariff == null) {
+            return null;
+        }
+
+        return convertTariffToDTO(tariff, costUSD, targetCurrency);
+    }
+
+    private TariffDTO convertTariffToDTO(Tariff tariff, double productCostUSD, String targetCurrency) {
+        Double ahsTariffAmount = null;
+        Double mfnTariffAmount = null;
+
+        if (productCostUSD > 0) {
+            if (tariff.getAhsWeighted() != null) {
+                ahsTariffAmount = calculateTariffAmount(
+                        productCostUSD,
+                        tariff.getAhsWeighted(),
+                        targetCurrency
+                );
+            }
+
+            if (tariff.getMfnWeighted() != null) {
+                mfnTariffAmount = calculateTariffAmount(
+                        productCostUSD,
+                        tariff.getMfnWeighted(),
+                        targetCurrency
+                );
+            }
+        }
+
+        return new TariffDTO(
+                tariff.getCountry(),
+                tariff.getPartner(),
+                tariff.getAhsWeighted(),
+                tariff.getMfnWeighted(),
+                ahsTariffAmount,
+                mfnTariffAmount,
+                targetCurrency
+        );
+    }
+
+    private double calculateTariffAmount(double productCostUSD, double tariffRatePercent, String targetCurrency) {
+        if (productCostUSD == 0.0 || tariffRatePercent == 0.0) {
+            return 0.0;
+        }
+
+        double tariffAmountUSD = productCostUSD * (tariffRatePercent / 100.0);
+        return currencyService.convertFromUSD(tariffAmountUSD, targetCurrency);
     }
 }
