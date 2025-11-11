@@ -12,6 +12,7 @@ import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+// routes session history operations (save/get/delete) via http session / redis
 @RestController
 @Tag(name = "Session History", description = "API endpoints for calculation session history")
 @RequestMapping("/api/tariff")
@@ -24,6 +25,7 @@ public class SessionHistoryController {
     }
 
     @Operation(summary = "Save calculation to session history")
+    // POST /api/tariff/history/save -> persist calculation in session store
     @PostMapping("/history/save")
     public ResponseEntity<?> saveCalculation(
             @RequestBody Map<String, Object> request,
@@ -44,6 +46,7 @@ public class SessionHistoryController {
     }
 
     @Operation(summary = "Retrieve calculation history for the current session")
+    // GET /api/tariff/history -> return list of entries for current session
     @GetMapping("/history")
     public ResponseEntity<List<CalculationHistoryDto>> getCalculationHistory(HttpSession session) {
         List<CalculationHistoryDto> history = sessionHistoryService.getCalculationHistory(session);
@@ -51,6 +54,7 @@ public class SessionHistoryController {
     }
 
     @Operation(summary = "Clear calculation history for the current session")
+    // DELETE /api/tariff/history/clear -> remove session history
     @DeleteMapping("/history/clear")
     public ResponseEntity<?> clearCalculationHistory(HttpSession session) {
         sessionHistoryService.clearCalculationHistory(session);
@@ -58,6 +62,7 @@ public class SessionHistoryController {
     }
 
     @Operation(summary = "Get a specific calculation by ID from session history")
+    // GET /api/tariff/history/{id} -> fetch single entry (session or cross-session)
     @GetMapping("/history/{id}")
     public ResponseEntity<CalculationHistoryDto> getCalculationById(
             @PathVariable String id,
@@ -82,6 +87,7 @@ public class SessionHistoryController {
     }
 
     @Operation(summary = "Remove a specific calculation by ID from session history")
+    // DELETE /api/tariff/history/{id} -> delete single entry (session or cross-session)
     @DeleteMapping("/history/{id}")
     public ResponseEntity<?> removeCalculationById(
             @PathVariable String id,

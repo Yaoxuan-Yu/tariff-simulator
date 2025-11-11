@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+// manages calculation history stored in http session (with optional redis lookup for cross-service)
 @Service
 public class SessionHistoryService {
     
@@ -16,11 +17,9 @@ public class SessionHistoryService {
     private RedisTemplate<String, Object> redisTemplate;
     
     private static final String HISTORY_SESSION_KEY = "CALCULATION_HISTORY";
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SessionHistoryService.class);
 
-    /**
-     * Save calculation to session history
-     * Accepts calculation data as Map (from HTTP response) to avoid direct dependency on tariff-calculator DTO
-     */
+
     public CalculationHistoryDto saveCalculation(HttpSession session, Map<String, Object> calculationData) {
         try {
             // Extract data from Map (from HTTP response)
@@ -63,6 +62,7 @@ public class SessionHistoryService {
             historyList.add(0, history); // Most recent first
             if (historyList.size() > 100) { // Keep only last 100
                 historyList.remove(historyList.size() - 1);
+                log.debug("History size > 100, trimming oldest entry for session {}", session.getId());
             }
 
             session.setAttribute(HISTORY_SESSION_KEY, historyList);
@@ -92,7 +92,7 @@ public class SessionHistoryService {
     public CalculationHistoryDto getCalculationByIdFromSession(String sessionId, String calculationId) {
         try {
             if (redisTemplate == null) {
-                System.err.println("❌ RedisTemplate is null!");
+                log.warn("RedisTemplate is not configured; cannot access session {}", sessionId);
                 return null;
             }
             
@@ -100,8 +100,7 @@ public class SessionHistoryService {
             String sessionKey = "spring:session:sessions:" + sessionId;
             Object historyObj = redisTemplate.opsForHash().get(sessionKey, "sessionAttr:" + HISTORY_SESSION_KEY);
             
-            System.out.println("🔍 Looking up session: " + sessionKey);
-            System.out.println("🔍 Found history data: " + (historyObj != null));
+            log.debug("Looking up session {} for calculation {}", sessionKey, calculationId);
             
             if (historyObj instanceof List) {
                 @SuppressWarnings("unchecked")
@@ -113,8 +112,7 @@ public class SessionHistoryService {
             }
             return null;
         } catch (Exception e) {
-            System.err.println("❌ Error accessing Redis: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error accessing Redis for session {}: {}", sessionId, e.getMessage(), e);
             return null;
         }
     }
@@ -128,7 +126,7 @@ public class SessionHistoryService {
     public void removeCalculationByIdFromSession(String sessionId, String calculationId) {
         try {
             if (redisTemplate == null) {
-                System.err.println("❌ RedisTemplate is null!");
+                log.warn("RedisTemplate is not configured; cannot remove calc {} from session {}", calculationId, sessionId);
                 return;
             }
             
@@ -136,7 +134,7 @@ public class SessionHistoryService {
             String sessionKey = "spring:session:sessions:" + sessionId;
             Object historyObj = redisTemplate.opsForHash().get(sessionKey, "sessionAttr:" + HISTORY_SESSION_KEY);
             
-            System.out.println("🗑️ Removing calculation " + calculationId + " from session: " + sessionKey);
+            log.debug("Removing calculation {} from session {}", calculationId, sessionKey);
             
             if (historyObj instanceof List) {
                 @SuppressWarnings("unchecked")
@@ -148,14 +146,13 @@ public class SessionHistoryService {
                 if (removed) {
                     // Save the updated list back to Redis
                     redisTemplate.opsForHash().put(sessionKey, "sessionAttr:" + HISTORY_SESSION_KEY, historyList);
-                    System.out.println("✅ Calculation removed from history");
+                    log.debug("Calculation {} removed from session {}", calculationId, sessionKey);
                 } else {
-                    System.out.println("⚠️ Calculation not found in history");
+                    log.debug("Calculation {} not found in session {}", calculationId, sessionKey);
                 }
             }
         } catch (Exception e) {
-            System.err.println("❌ Error removing from Redis: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Failed to remove calculation {} from session {}: {}", calculationId, sessionId, e.getMessage(), e);
         }
     }
 }
