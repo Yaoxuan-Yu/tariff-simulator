@@ -63,17 +63,18 @@ public class SessionHistoryController {
             @PathVariable String id,
             @RequestParam(required = false) String sessionId,
             HttpSession session) {
-        System.out.println("📥 Session-Management received request for calculation: " + id);
-        System.out.println("📥 Provided sessionId param: " + sessionId);
-        System.out.println("📥 Current session ID: " + session.getId());
-        System.out.println("📥 Session is new: " + session.isNew());
-        
         if (id == null || id.trim().isEmpty()) {
             throw new com.example.session.exception.BadRequestException("Calculation ID is required");
         }
         
         // If sessionId parameter is provided, use it to look up the calculation
-        CalculationHistoryDto calculation = sessionHistoryService.getCalculationByIdFromSession(sessionId != null ? sessionId : session.getId(), id);
+        CalculationHistoryDto calculation;
+        if (sessionId != null && !sessionId.isBlank()) {
+            calculation = sessionHistoryService.getCalculationByIdFromSession(sessionId, id);
+        } else {
+            calculation = sessionHistoryService.getCalculationById(session, id);
+        }
+
         if (calculation == null) {
             throw new com.example.session.exception.NotFoundException("Calculation not found in history");
         }
@@ -90,9 +91,16 @@ public class SessionHistoryController {
             throw new com.example.session.exception.BadRequestException("Calculation ID is required");
         }
         
-        // Use provided sessionId if available, otherwise use current session
-        String targetSessionId = sessionId != null ? sessionId : session.getId();
-        sessionHistoryService.removeCalculationByIdFromSession(targetSessionId, id);
+        if (sessionId != null && !sessionId.isBlank()) {
+            sessionHistoryService.removeCalculationByIdFromSession(sessionId, id);
+        } else {
+            @SuppressWarnings("unchecked")
+            List<CalculationHistoryDto> historyList = (List<CalculationHistoryDto>) session.getAttribute("CALCULATION_HISTORY");
+            if (historyList != null) {
+                historyList.removeIf(h -> h.getId().equals(id));
+                session.setAttribute("CALCULATION_HISTORY", historyList);
+            }
+        }
         return ResponseEntity.ok().build();
     }
 }

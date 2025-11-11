@@ -22,12 +22,6 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage()));
     }
 
-    @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<Map<String, String>> handleValidationException(ValidationException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("error", ex.getMessage()));
-    }
-
     @ExceptionHandler(ExportException.class)
     public ResponseEntity<Map<String, String>> handleExportException(ExportException ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

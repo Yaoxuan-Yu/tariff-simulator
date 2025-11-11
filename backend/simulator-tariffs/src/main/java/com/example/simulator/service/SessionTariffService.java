@@ -64,15 +64,6 @@ public class SessionTariffService {
         return sessionTariffs != null ? new ArrayList<>(sessionTariffs) : new ArrayList<>();
     }
 
-    // Get specific tariff definition by ID
-    public TariffDefinitionsResponse.TariffDefinitionDto getTariffDefinitionById(HttpSession session, String id) {
-        List<TariffDefinitionsResponse.TariffDefinitionDto> sessionTariffs = getTariffDefinitions(session);
-        return sessionTariffs.stream()
-                .filter(t -> t.getId().equals(id))
-                .findFirst()
-                .orElse(null);
-    }
-
     // Update tariff definition in session
     public TariffDefinitionsResponse.TariffDefinitionDto updateTariffDefinition(
             HttpSession session, 

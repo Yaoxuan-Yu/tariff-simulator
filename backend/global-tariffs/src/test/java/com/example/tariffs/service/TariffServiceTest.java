@@ -22,7 +22,6 @@ import com.example.tariffs.exception.NotFoundException;
 import com.example.tariffs.exception.ValidationException;
 import com.example.tariffs.repository.ProductRepository;
 import com.example.tariffs.repository.TariffRepository;
-import com.example.tariffs.service.api.WitsApiService;
 
 @ExtendWith(MockitoExtension.class)
 public class TariffServiceTest {
@@ -32,9 +31,6 @@ public class TariffServiceTest {
 
     @Mock
     private ProductRepository productRepository;
-
-    @Mock
-    private WitsApiService witsApiService;
 
     @InjectMocks
     private TariffService tariffService;

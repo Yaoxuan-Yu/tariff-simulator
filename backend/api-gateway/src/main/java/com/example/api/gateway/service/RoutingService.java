@@ -40,11 +40,6 @@ public class RoutingService {
     public RoutingService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
-    
-    public RestTemplate getRestTemplate() {
-        return restTemplate;
-    }
-    
     // Getter methods for service URLs
     public String getProductServiceUrl() {
         return productServiceUrl;
@@ -82,15 +77,6 @@ public class RoutingService {
         // Use the URI directly - already properly encoded by UriComponentsBuilder
         return restTemplate.exchange(targetUri, method, requestEntity, responseType);
     }
-    
-    @SuppressWarnings("unchecked")
-    public <T> ResponseEntity<T> forwardRequestGeneric(String targetUrl, HttpMethod method, 
-            HttpEntity<?> requestEntity) {
-        // Use URI.create() to properly handle already-encoded URLs
-        ResponseEntity<?> response = restTemplate.exchange(java.net.URI.create(targetUrl), method, requestEntity, Object.class);
-        return (ResponseEntity<T>) response;
-    }
-
     public HttpEntity<?> createHttpEntity(HttpServletRequest request, Object body) {
         HttpHeaders headers = new HttpHeaders();
         

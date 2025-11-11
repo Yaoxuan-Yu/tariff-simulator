@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpSession;
 
 import com.example.calculator.dto.TariffResponse;
 import com.example.calculator.service.TariffService;
-import com.example.calculator.service.ModeManager;
 import com.example.calculator.client.SessionManagementClient;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,15 +20,12 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class TariffCalculationController {
     private final TariffService tariffService;
-    private final ModeManager modeManager;
     private final SessionManagementClient sessionManagementClient;
 
     public TariffCalculationController(
             TariffService tariffService,
-            ModeManager modeManager,
             SessionManagementClient sessionManagementClient) {
         this.tariffService = tariffService;
-        this.modeManager = modeManager;
         this.sessionManagementClient = sessionManagementClient;
     }
 
@@ -88,13 +84,11 @@ public class TariffCalculationController {
                 session
             );
         } else {
-            // For global mode, use the mode manager
-            modeManager.useGlobalMode();
-            response = modeManager.calculate(
-                importingTo,
-                exportingFrom,
+            response = tariffService.calculate(
                 product,
                 brand,
+                exportingFrom,
+                importingTo,
                 quantity,
                 customCost
             );

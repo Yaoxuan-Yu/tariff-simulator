@@ -1,17 +1,11 @@
 package com.example.integration.service;
 
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integration.dto.TariffRateDto;
-import com.example.integration.entity.Product;
 import com.example.integration.entity.Tariff;
 import com.example.integration.entity.TariffId;
-import com.example.integration.repository.ProductRepository;
 import com.example.integration.repository.TariffRepository;
-import com.example.integration.service.WitsApiService;
 
 import java.util.List;
 import java.util.Map;
@@ -39,9 +33,7 @@ public class TariffService {
         this.witsApiService = witsApiService;
     }
 
-    @Async("tariffApiExecutor")
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public void updateTariffsAsync(String reporterCode, String partnerCode, String hsCode) {
+    public void updateTariffs(String reporterCode, String partnerCode, String hsCode) {
         String reporterName = COUNTRY_CODE_MAP.getOrDefault(reporterCode, reporterCode);
         String partnerName = COUNTRY_CODE_MAP.getOrDefault(partnerCode, partnerCode);
 

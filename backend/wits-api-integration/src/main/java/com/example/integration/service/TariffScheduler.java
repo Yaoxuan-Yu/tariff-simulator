@@ -3,7 +3,6 @@ package com.example.integration.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -61,19 +60,8 @@ public class TariffScheduler {
             }
         }
 
-        // 异步发 API（2个并发）
-        CountDownLatch latch = new CountDownLatch(requestCombinations.size());
         for (RequestCombination combo : requestCombinations) {
-            tariffService.updateTariffsAsync(combo.reporterCode, combo.partnerCode, combo.hsCode);
-            latch.countDown(); // 无需传参，直接计数
-        }
-
-        // 等待完成
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.err.printf("[Interrupted] Task stopped: %s%n", e.getMessage());
+            tariffService.updateTariffs(combo.reporterCode, combo.partnerCode, combo.hsCode);
         }
 
         // 总结

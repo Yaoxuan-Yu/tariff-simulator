@@ -13,24 +13,18 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final com.example.product.client.GlobalTariffsClient globalTariffsClient;
 
-    public ProductService(ProductRepository productRepository, 
-                         com.example.product.client.GlobalTariffsClient globalTariffsClient) {
+    public ProductService(ProductRepository productRepository,
+                          com.example.product.client.GlobalTariffsClient globalTariffsClient) {
         this.productRepository = productRepository;
         this.globalTariffsClient = globalTariffsClient;
     }
 
-    /**
-     * Get all countries from global-tariffs service via HTTP
-     */
     public List<String> getAllCountries() {
-        return globalTariffsClient.getAllCountries();
+      return globalTariffsClient.getAllCountries();
     }
 
-    /**
-     * Get all partners (exporting countries) from global-tariffs service via HTTP
-     */
     public List<String> getAllPartners() {
-        return globalTariffsClient.getAllPartners();
+      return globalTariffsClient.getAllPartners();
     }
 
     public List<String> getAllProducts() {
@@ -51,10 +45,9 @@ public class ProductService {
             return products.stream()
                     .map(p -> new BrandInfo(p.getBrand(), p.getCost(), p.getUnit()))
                     .collect(Collectors.toList());
+        } catch (com.example.product.exception.NotFoundException e) {
+            throw e;
         } catch (Exception e) {
-            if (e instanceof com.example.product.exception.NotFoundException) {
-                throw e;
-            }
             throw new com.example.product.exception.DataAccessException("Failed to retrieve brands for product: " + product, e);
         }
     }

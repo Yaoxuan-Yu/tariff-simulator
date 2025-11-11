@@ -2,15 +2,10 @@ package com.example.export.client;
 
 import com.example.session.dto.CalculationHistoryDto;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.List;
 
 /**
  * HTTP client for communicating with session-management service
@@ -53,29 +48,6 @@ public class SessionManagementClient {
         } catch (Exception e) {
             throw new com.example.export.exception.DataAccessException(
                 "Failed to fetch calculation from session-management service: " + e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * Get all calculation history from session-management service
-     */
-    public List<CalculationHistoryDto> getCalculationHistory() {
-        try {
-            String url = sessionManagementUrl + "/api/tariff/history";
-            ResponseEntity<List<CalculationHistoryDto>> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<List<CalculationHistoryDto>>() {}
-            );
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return response.getBody();
-            }
-            return List.of();
-        } catch (Exception e) {
-            throw new com.example.export.exception.DataAccessException(
-                "Failed to fetch calculation history from session-management service: " + e.getMessage(), e);
         }
     }
     
