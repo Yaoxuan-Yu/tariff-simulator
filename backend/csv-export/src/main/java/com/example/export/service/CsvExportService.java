@@ -9,11 +9,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 
+// handles csv rendering for export cart entries
 @Service
 public class CsvExportService {
 
-    // ===== EXPORT CART AS CSV =====
-    // Export all items in export cart as CSV
+    // write cart contents to response as csv
     public void exportToCsv(List<CalculationHistoryDto> cartItems, HttpServletResponse response) {
         configureResponse(response, "export_cart_" + System.currentTimeMillis() + ".csv");
         try (PrintWriter writer = response.getWriter()) {
@@ -30,21 +30,18 @@ public class CsvExportService {
         }
     }
 
-
-    // ===== HELPER METHODS =====
-
-    // Helper method: set headers for file download
+    // set response headers for csv download
     private void configureResponse(HttpServletResponse response, String fileName) {
         response.setContentType("text/csv");
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"");
     }
 
-    // Helper method: write CSV header row for cart export
+    // write csv header row
     private void writeCartHeader(PrintWriter writer) {
         writer.println("ID,Product,Brand,Exporting From,Importing To,Quantity,Unit,Product Cost,Tariff Rate,Tariff Amount,Total Cost,Tariff Type,Source,Created At");
     }
 
-    // Helper method: write data row for cart item
+    // write csv row for a single calculation
     private void writeCartData(PrintWriter writer, CalculationHistoryDto calc) {
         writer.printf("%s,%s,%s,%s,%s,%.2f,%s,%.2f,%.2f%%,%.2f,%.2f,%s,%s,%s%n",
                 escapeCSV(calc.getId()),
@@ -63,7 +60,7 @@ public class CsvExportService {
                 calc.getCreatedAt());
     }
 
-    // Helper method: escape CSV values that contain special characters
+    // escape csv values that contain commas/quotes/newlines
     private String escapeCSV(String value) {
         if (value == null) {
             return "";

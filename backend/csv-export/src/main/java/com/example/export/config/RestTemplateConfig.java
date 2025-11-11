@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
+// creates shared resttemplate bean for service-to-service calls
 @Configuration
 public class RestTemplateConfig {
     

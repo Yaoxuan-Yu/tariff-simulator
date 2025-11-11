@@ -7,9 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-/**
- * HTTP client for communicating with session-management service
- */
+// http client that talks to session-management service
 @Component
 public class SessionManagementClient {
     
@@ -22,17 +20,13 @@ public class SessionManagementClient {
         this.restTemplate = restTemplate;
     }
     
-    /**
-     * Get calculation history by ID from session-management service
-     * Pass session ID in header to ensure session sharing works across microservices
-     */
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SessionManagementClient.class);
+    
+    // fetch calculation details by id (service-to-service call)
     public CalculationHistoryDto getCalculationById(String sessionId, String calculationId) {
         try {
-            // Pass session ID as URL parameter instead of cookie (works for service-to-service calls)
+            // pass session ID as query param (works across services)
             String url = sessionManagementUrl + "/api/tariff/history/" + calculationId + "?sessionId=" + sessionId;
-            
-            System.out.println("🌐 Calling session-management: " + url);
-            System.out.println("🔑 Session ID param: " + sessionId);
             
             ResponseEntity<CalculationHistoryDto> response = restTemplate.exchange(
                 url,
@@ -51,16 +45,11 @@ public class SessionManagementClient {
         }
     }
     
-    /**
-     * Remove calculation from session history by ID
-     * Pass session ID as URL parameter for cross-service session sharing
-     */
+    // remove calculation from session history (used when item moves into export cart)
     public void removeCalculationById(String sessionId, String calculationId) {
         try {
-            // Pass session ID as URL parameter
+            // pass session ID as query param
             String url = sessionManagementUrl + "/api/tariff/history/" + calculationId + "?sessionId=" + sessionId;
-            
-            System.out.println("🗑️ Calling session-management to remove: " + url);
             
             restTemplate.exchange(
                 url,

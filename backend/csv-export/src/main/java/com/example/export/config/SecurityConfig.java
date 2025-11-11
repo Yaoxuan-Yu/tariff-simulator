@@ -7,11 +7,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
-/**
- * Minimal security configuration for Export & Reporting Service.
- * API Gateway handles JWT validation and authentication.
- * This service trusts requests from the Gateway and only enforces endpoint-level authorization.
- */
+// minimal security config – trusts calls from api gateway
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -19,14 +15,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // no csrf for stateless service
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
-                        // Trust requests from API Gateway (internal service-to-service)
+                        // all /api/** calls are internal via the gateway
                         .requestMatchers("/api/**").permitAll()
                         .anyRequest().permitAll()
                 )

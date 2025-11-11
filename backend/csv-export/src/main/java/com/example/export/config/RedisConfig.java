@@ -41,12 +41,7 @@ public class RedisConfig {
         return template;
     }
     
-    /**
-     * Configure Spring Session to use JSON serialization instead of Java serialization.
-     * This allows all microservices to share session data without ClassNotFoundException.
-     * JavaTimeModule is registered to support LocalDateTime serialization.
-     * Polymorphic type handling is enabled to preserve type information.
-     */
+    // spring session uses json serialisation for microservices to share session data 
     @Bean
     public org.springframework.data.redis.serializer.RedisSerializer<Object> springSessionDefaultRedisSerializer() {
         // Create ObjectMapper with JavaTimeModule and polymorphic type handling

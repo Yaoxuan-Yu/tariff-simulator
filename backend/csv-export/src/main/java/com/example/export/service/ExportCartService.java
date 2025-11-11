@@ -6,25 +6,23 @@ import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.List;
 
+// manages export cart entries stored in the user's http session
 @Service
 public class ExportCartService {
-    
-    private static final String CART_SESSION_KEY = "EXPORT_CART";
-    
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ExportCartService.class);
+    private static final String CART_SESSION_KEY = "EXPORT_CART"; // session attribute key
+
     private final com.example.export.client.SessionManagementClient sessionManagementClient;
 
     public ExportCartService(com.example.export.client.SessionManagementClient sessionManagementClient) {
         this.sessionManagementClient = sessionManagementClient;
     }
     
-    /**
-     * Add calculation to export cart by calling session-management service via HTTP
-     * Also removes the calculation from session history (MOVE operation, not COPY)
-     */
+    // add calculation to cart (moves item from session history)
     public void addToCart(HttpSession session, String calculationId) {
-        // Call session-management service to get calculation by ID (pass session ID)
-        System.out.println("🔍 CSV-Export: Session ID = " + session.getId());
-        System.out.println("🔍 CSV-Export: Calculation ID = " + calculationId);
+        // call session-management to fetch calculation by id
+        log.debug("Fetching calculation {} for session {}", calculationId, session.getId());
         CalculationHistoryDto calculation = sessionManagementClient.getCalculationById(session.getId(), calculationId);
         
         if (calculation == null) {
@@ -37,7 +35,7 @@ public class ExportCartService {
             cart = new ArrayList<>();
         }
 
-        // Prevent duplicates
+        // prevent duplicates in cart
         if (cart.stream().anyMatch(c -> c.getId().equals(calculationId))) {
             throw new com.example.export.exception.BadRequestException("Item already in cart");
         }
@@ -45,17 +43,17 @@ public class ExportCartService {
         cart.add(calculation);
         session.setAttribute(CART_SESSION_KEY, cart);
         
-        // Remove from session history after successfully adding to cart (MOVE operation)
+        // remove from history after adding to cart
         try {
             sessionManagementClient.removeCalculationById(session.getId(), calculationId);
-            System.out.println("✅ Removed calculation from session history");
+            log.debug("Removed calculation {} from session history for {}", calculationId, session.getId());
         } catch (Exception e) {
-            System.err.println("⚠️ Failed to remove from session history: " + e.getMessage());
-            // Don't fail the operation if removal fails
+            log.warn("Failed to remove calculation {} from history for {}: {}", calculationId, session.getId(), e.getMessage());
+            // don't bubble up – export cart still contains the calculation
         }
     }
 
-    // Remove calculation from export cart
+    // remove individual calculation from cart
     public void removeFromCart(HttpSession session, String calculationId) {
         @SuppressWarnings("unchecked")
         List<CalculationHistoryDto> cart = (List<CalculationHistoryDto>) session.getAttribute(CART_SESSION_KEY);
@@ -71,14 +69,14 @@ public class ExportCartService {
         session.setAttribute(CART_SESSION_KEY, cart);
     }
 
-    // Get all items in export cart
+    // get current cart snapshot
     public List<CalculationHistoryDto> getCart(HttpSession session) {
         @SuppressWarnings("unchecked")
         List<CalculationHistoryDto> cart = (List<CalculationHistoryDto>) session.getAttribute(CART_SESSION_KEY);
         return cart != null ? cart : new ArrayList<>();
     }
 
-    // Clear entire export cart
+    // remove cart from session
     public void clearCart(HttpSession session) {
         session.removeAttribute(CART_SESSION_KEY);
     }

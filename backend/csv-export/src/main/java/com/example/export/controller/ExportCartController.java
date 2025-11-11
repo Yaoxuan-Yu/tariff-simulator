@@ -16,6 +16,7 @@ import jakarta.servlet.http.HttpSession;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+// rest endpoints for managing the export cart & csv download
 @RestController
 @Tag(name = "Export Cart", description = "API endpoints for managing export cart and CSV export")
 @RequestMapping("/api/export-cart")
@@ -23,6 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class ExportCartController {
     private final ExportCartService exportCartService;
     private final CsvExportService csvExportService;
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ExportCartController.class);
 
     public ExportCartController(
             ExportCartService exportCartService,
@@ -31,6 +33,7 @@ public class ExportCartController {
         this.csvExportService = csvExportService;
     }
 
+    // GET /api/export-cart -> return cart contents (204 when empty)
     @Operation(summary = "Get all items in the export cart")
     @GetMapping
     public ResponseEntity<List<CalculationHistoryDto>> getCart(HttpSession session) {
@@ -41,6 +44,7 @@ public class ExportCartController {
         return ResponseEntity.ok(cart);
     }
 
+    // POST /api/export-cart/add/{calculationId} -> move calc into export cart
     @Operation(summary = "Add a calculation to the export cart")
     @PostMapping("/add/{calculationId}")
     public ResponseEntity<?> addToCart(
@@ -59,6 +63,7 @@ public class ExportCartController {
         }
     }
 
+    // DELETE /api/export-cart/remove/{calculationId} -> remove single calc
     @Operation(summary = "Remove a calculation from the export cart")
     @DeleteMapping("/remove/{calculationId}")
     public ResponseEntity<?> removeFromCart(
@@ -75,6 +80,7 @@ public class ExportCartController {
         }
     }
 
+    // DELETE /api/export-cart/clear -> clear cart
     @Operation(summary = "Clear the entire export cart")
     @DeleteMapping("/clear")
     public ResponseEntity<?> clearCart(HttpSession session) {
@@ -82,6 +88,7 @@ public class ExportCartController {
         return ResponseEntity.ok().build();
     }
 
+    // GET /api/export-cart/export -> stream csv
     @Operation(summary = "Export cart as CSV file")
     @GetMapping("/export")
     public void exportCartAsCsv(HttpSession session, HttpServletResponse response) {
@@ -96,7 +103,7 @@ public class ExportCartController {
             csvExportService.exportToCsv(cart, response);
         } catch (Exception e) {
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            System.err.println("Failed to export cart as CSV: " + e.getMessage());
+            log.error("Failed to export cart as CSV", e);
         }
     }
 }
