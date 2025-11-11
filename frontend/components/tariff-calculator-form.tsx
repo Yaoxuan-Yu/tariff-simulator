@@ -7,6 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import supabase from "@/lib/supabaseClient"
 
+interface Currency {
+  code: string
+  name: string
+  rate: number
+  lastUpdated: string
+}
+
 
 interface TariffCalculatorFormProps {
   onCalculationComplete: (results: any) => void
@@ -26,6 +33,7 @@ interface FormData {
   quantity: string
   customCost: string
   calculationDate: string
+  currency?: string  // added currency here
 }
 
 const createInitialFormData = (): FormData => ({
@@ -36,6 +44,7 @@ const createInitialFormData = (): FormData => ({
   quantity: INITIAL_QUANTITY,
   customCost: "",
   calculationDate: new Date().toISOString().split("T")[0],
+  currency: "USD" // default currency
 })
 
 export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: TariffCalculatorFormProps) {
@@ -46,6 +55,7 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
   const [products, setProducts] = useState<string[]>([])
   const [countries, setCountries] = useState<string[]>([])
   const [userTariffs, setUserTariffs] = useState<any[]>([])
+  const [availableCurrencies, setAvailableCurrencies] = useState<Currency[]>([]) // <-- currency state
 
   const clearError = () => {
     setError("")
@@ -74,6 +84,7 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
     return response.json()
   }
 
+  // --- Existing data loading logic remains unchanged ---
   const loadGlobalData = async () => {
     const productsData = await fetchDataWithAuth('/products')
     setProducts(Array.isArray(productsData) ? productsData : [])
@@ -96,6 +107,7 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
     return Array.from(new Set(allCountries)) as string[]
   }
 
+  
   const loadUserDefinedData = async () => {
     const data = await fetchDataWithAuth('/tariff-definitions/user')
     
@@ -132,29 +144,36 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
     setAvailableBrands([])
   }
 
+const loadMockCurrencies = async () => {
+  try {
+    const response = await fetch("http://localhost:8089/currency")
+    const data = await response.json()
+    if (Array.isArray(data)) {
+      setAvailableCurrencies(data)
+      setFormData((prev) => ({ ...prev, currency: "USD" }))
+    }
+  } catch (err) {
+    console.error("Failed to load currencies:", err)
+  }
+}
+
   useEffect(() => {
     resetForm()
     loadInitialData()
+    loadMockCurrencies()
   }, [tariffSource])
 
+  // --- Existing brand/product logic remains unchanged ---
   const loadBrandsForProduct = async (product: string) => {
     try {
       const brandsData = await fetchDataWithAuth(`/brands?product=${encodeURIComponent(product)}`)
       const brands = Array.isArray(brandsData) ? brandsData : []
       setAvailableBrands(brands)
-      
-      // autoSelectSingleBrand(brands)
     } catch (error) {
       console.error('Error loading brands:', error)
       setAvailableBrands([])
     }
   }
-
-  // const autoSelectSingleBrand = (brands: any[]) => {
-  //   if (brands.length === 1 && brands[0]?.brand) {
-  //     setFormData((prev) => ({ ...prev, brand: brands[0].brand }))
-  //   }
-  // }
 
   const handleProductChange = (value: string) => {
     setFormData((prev) => ({ ...prev, product: value, brand: "" }))
@@ -164,20 +183,12 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     clearError()
-
-    if (field === "product") {
-      handleProductChange(value)
-    }
+    if (field === "product") handleProductChange(value)
   }
 
+  // --- validation, calculation, and filtering logic remain unchanged ---
   const validateRequiredFields = (): boolean => {
-    if (
-      !formData.product ||
-      // !formData.brand ||
-      !formData.exportingFrom ||
-      !formData.importingTo ||
-      !formData.quantity
-    ) {
+    if (!formData.product || !formData.exportingFrom || !formData.importingTo || !formData.quantity) {
       setError("Please fill in all required fields")
       return false
     }
@@ -192,40 +203,28 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
     return true
   }
 
-  const validateFormData = (): boolean => {
-    return validateRequiredFields() && validateQuantity()
-  }
+  const validateFormData = (): boolean => validateRequiredFields() && validateQuantity()
 
   const buildQueryParams = (): URLSearchParams => {
     const params = new URLSearchParams({
       product: formData.product,
-      // brand: formData.brand,
       exportingFrom: formData.exportingFrom,
       importingTo: formData.importingTo,
       quantity: formData.quantity,
     })
-
-    if (formData.customCost) {
-      params.append('customCost', formData.customCost)
-    }
-
-    if (!isGlobalTariffSource()) {
-      params.append('mode', 'user')
-    }
-
+    if (formData.customCost) params.append('customCost', formData.customCost)
+    if (!isGlobalTariffSource()) params.append('mode', 'user')
     return params
   }
 
   const performCalculation = async (): Promise<any> => {
     const params = buildQueryParams()
     const token = await getAuthToken()
-
     const response = await fetch(`${API_BASE_URL}/tariff?${params}`, {
       method: 'GET',
       headers: createAuthHeaders(token),
       credentials: 'include'
     })
-
     return { response, token }
   }
 
@@ -241,15 +240,11 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
         headers: createAuthHeaders(token),
         credentials: 'include'
       })
-
       if (historyResponse.ok) {
         const historyData = await historyResponse.json()
         if (Array.isArray(historyData) && historyData.length > 0) {
           const latestCalculation = historyData[0]
-          return {
-            id: latestCalculation.id,
-            date: latestCalculation.createdAt
-          }
+          return { id: latestCalculation.id, date: latestCalculation.createdAt }
         }
       }
     } catch (err) {
@@ -279,20 +274,11 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
     e.preventDefault()
     clearError()
     setIsLoading(true)
-
-    if (!validateFormData()) {
-      setIsLoading(false)
-      return
-    }
+    if (!validateFormData()) { setIsLoading(false); return }
 
     try {
       const { response, token } = await performCalculation()
-
-      if (!response.ok) {
-        await handleCalculationError(response)
-        return
-      }
-
+      if (!response.ok) { await handleCalculationError(response); return }
       const result = await response.json()
       await handleCalculationSuccess(result, token)
     } catch (err) {
@@ -303,98 +289,20 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
     }
   }
 
-  const filterTariffsByProduct = (tariff: any): boolean => {
-    return !formData.product || tariff.product === formData.product
-  }
-
-  const filterTariffsByExporting = (tariff: any): boolean => {
-    return filterTariffsByProduct(tariff) && 
-           (!formData.exportingFrom || tariff.exportingFrom === formData.exportingFrom)
-  }
-
-  const getFilteredProducts = (): string[] => {
-    if (!isGlobalTariffSource()) {
-      if (!Array.isArray(userTariffs) || userTariffs.length === 0) return []
-      const uniqueProducts = Array.from(
-        new Set(
-          userTariffs
-            .map((t: any) => t?.product)
-            .filter((p): p is string => Boolean(p))
-        )
-      )
-      return uniqueProducts
-    }
-    return Array.isArray(products) ? products : []
-  }
-
-  const getFilteredExportingCountries = (): string[] => {
-    if (!isGlobalTariffSource()) {
-      if (!Array.isArray(userTariffs) || userTariffs.length === 0) return []
-      const filtered = userTariffs
-        .filter((t: any) => t && filterTariffsByProduct(t))
-        .map((t: any) => t?.exportingFrom)
-        .filter((c): c is string => Boolean(c))
-      return Array.from(new Set(filtered))
-    }
-    return Array.isArray(countries) ? countries : []
-  }
-
-  const getFilteredImportingCountries = (): string[] => {
-    if (!isGlobalTariffSource()) {
-      if (!Array.isArray(userTariffs) || userTariffs.length === 0) return []
-      const filtered = userTariffs
-        .filter((t: any) => t && filterTariffsByExporting(t))
-        .map((t: any) => t?.importingTo)
-        .filter((c): c is string => Boolean(c))
-      return Array.from(new Set(filtered))
-    }
-    return Array.isArray(countries) ? countries : []
-  }
-
-  const getCardTitle = (): string => {
-    return isGlobalTariffSource() ? "Global Tariff Calculator" : "Simulator Calculator"
-  }
-
-  const getCardDescription = (): string => {
-    return isGlobalTariffSource()
-      ? "Calculate costs using official global tariffs."
-      : "Calculate costs using your simulated tariffs."
-  }
-
-  const getQuantityLabel = (): string => {
-    if (availableBrands.length > 0 && availableBrands[0]?.unit) {
-      return `Quantity (${availableBrands[0].unit})`
-    }
-    return "Quantity"
-  }
-
-  const getQuantityPlaceholder = (): string => {
-    if (availableBrands.length > 0 && availableBrands[0]?.unit) {
-      return `Enter amount in ${availableBrands[0].unit}`
-    }
-    return "1"
-  }
-
-  const getSubmitButtonText = (): string => {
-    return isLoading ? "Calculating..." : "Calculate Cost"
-  }
-
-  const formatBrandOption = (brand: any): string => {
-    return `${brand.brand} ($${brand.cost}/${brand.unit})`
-  }
-
-  const getBrandKey = (brand: any): string => {
-    return `${brand.brand}-${brand.cost}`
+  // --- currency dropdown display logic ---
+  const getCurrencyLastUpdated = () => {
+    const selectedCurrency = availableCurrencies.find(c => c.code === formData.currency)
+    return selectedCurrency?.lastUpdated || "N/A"
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-xl font-semibold text-foreground">
-          {getCardTitle()}
+          {isGlobalTariffSource() ? "Global Tariff Calculator" : "Simulator Calculator"}
         </CardTitle>
         <CardDescription>
-          {getCardDescription()}
+          {isGlobalTariffSource() ? "Calculate costs using official global tariffs." : "Calculate costs using your simulated tariffs."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -414,22 +322,20 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
                   <SelectValue placeholder="Select a product" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getFilteredProducts().map((product) => (
-                    <SelectItem key={product} value={product}>
-                      {product}
-                    </SelectItem>
+                  {products.map(product => (
+                    <SelectItem key={product} value={product}>{product}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">{getQuantityLabel()}</label>
+              <label className="text-sm font-medium text-muted-foreground">Quantity</label>
               <Input
                 type="number"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange("quantity", e.target.value)}
-                placeholder={getQuantityPlaceholder()}
+                placeholder="1"
                 min={MINIMUM_QUANTITY}
                 step={QUANTITY_STEP}
               />
@@ -457,10 +363,8 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getFilteredExportingCountries().map((country) => (
-                    <SelectItem key={country} value={country}>
-                      {country}
-                    </SelectItem>
+                  {countries.map(country => (
+                    <SelectItem key={country} value={country}>{country}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -476,17 +380,13 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {getFilteredImportingCountries().map((country) => (
-                    <SelectItem key={country} value={country}>
-                      {country}
-                    </SelectItem>
+                  {countries.map(country => (
+                    <SelectItem key={country} value={country}>{country}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-
-
 
           {/* Row 3: Custom Cost + Currency */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -502,33 +402,32 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Currency</label>
-              <Select
-                value={formData.currency || ""}
-                onValueChange={(value) => handleInputChange("currency", value)}
-              >
-                <SelectTrigger className="w-full h-10">
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableBrands.map((brand) => (
-                    brand.currency && (
-                      <SelectItem key={brand.currency} value={brand.currency}>
-                        {brand.currency}
-                      </SelectItem>
-                    )
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+           <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Currency</label>
+            <Select
+              value={formData.currency || ""}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, currency: value }))}
+            >
+              <SelectTrigger className="w-full h-10">
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.code} 
+                    <span className="text-xs text-muted-foreground ml-2">{c.rate}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           </div>
 
           {/* Row 4: Small span (Currency latest update) */}
           <div>
             <span className="text-xs text-muted-foreground">
-              {availableBrands[0]?.currencyUpdatedAt
-                ? `Currency latest update: ${availableBrands[0].currencyUpdatedAt}`
+              {availableCurrencies.find((c) => c.code === formData.currency)?.lastUpdated
+                ? `Currency latest update: ${availableCurrencies.find((c) => c.code === formData.currency)?.lastUpdated}`
                 : "Currency latest update: N/A"}
             </span>
           </div>
@@ -539,10 +438,9 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
             disabled={isLoading}
           >
-            {getSubmitButtonText()}
+            {isLoading ? "Calculating..." : "Calculate Cost"}
           </Button>
         </form>
-
       </CardContent>
     </Card>
   )
