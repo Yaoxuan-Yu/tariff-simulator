@@ -211,6 +211,9 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DATABASE_PASSWORD}
     networks:
       - microservices-network
+    volumes:
+      - ./wits-api-integration/src/main/resources/application.properties:/app/application.properties
+
     restart: unless-stopped
 
 volumes:

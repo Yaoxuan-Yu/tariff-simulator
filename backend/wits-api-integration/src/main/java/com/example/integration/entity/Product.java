@@ -1,8 +1,11 @@
 package com.example.integration.entity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "\"Products (Test)\"")
+@Table(name = "\"Products (Test)\"")  // make sure exact quotes in code
 public class Product {
     @Id
     @Column(name = "\"id\"")

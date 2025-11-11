@@ -18,7 +18,6 @@ public class SecurityContextUtil {
     public static String getCurrentUserEmail() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated()) {
-            Object details = auth.getDetails();
             // Gateway passes user info via headers, check headers if SecurityContext not populated
             // For now, return null if not in SecurityContext (Gateway should populate it)
             return null;
