@@ -9,8 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import com.example.tariffs.entity.Tariff;
 import com.example.tariffs.entity.TariffId;
 
-
-// // provides a layer of abstraction for the database operations for the tariff entity, and provides a clean interface for the service layer to use
+// jpa repository providing access to tariff rates table
 public interface TariffRepository extends JpaRepository<Tariff, TariffId> {
     @Query(value = "SELECT * FROM \"Tariff Rates (Test)\" WHERE \"country\" = ?1 AND \"partner\" = ?2", nativeQuery = true)
     Optional<Tariff> findByCountryAndPartner(String country, String partner);

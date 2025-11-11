@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
+// jpa repository for product lookups used in tariff aggregation
 public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query(value = "SELECT * FROM \"Products (Test)\" WHERE LOWER(\"product\") = LOWER(?1)", nativeQuery = true)
     List<Product> findByName(String name);

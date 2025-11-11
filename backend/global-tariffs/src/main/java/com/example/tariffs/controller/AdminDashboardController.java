@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.HashMap;
 import java.util.Map;
 
+// admin endpoints that expose aggregate stats and reference data
 @RestController
 @Tag(name = "Admin Dashboard", description = "Admin-only endpoints for dashboard statistics and management")
 @RequestMapping("/api/admin")
@@ -31,6 +32,7 @@ public class AdminDashboardController {
     }
 
     @Operation(summary = "Get admin dashboard statistics")
+    // GET /api/admin/dashboard/stats -> counts for dashboard widgets
     @GetMapping("/dashboard/stats")
     public ResponseEntity<Map<String, Object>> getDashboardStats() {
         Map<String, Object> stats = new HashMap<>();
@@ -54,12 +56,14 @@ public class AdminDashboardController {
     }
 
     @Operation(summary = "Get all available countries")
+    // GET /api/admin/countries -> distinct country list
     @GetMapping("/countries")
     public ResponseEntity<java.util.List<String>> getAllCountries() {
         return ResponseEntity.ok(tariffService.getAllCountries());
     }
 
     @Operation(summary = "Get all available products")
+    // GET /api/admin/products -> distinct product list
     @GetMapping("/products")
     public ResponseEntity<java.util.List<String>> getAllProducts() {
         java.util.List<String> products = productRepository.findDistinctProducts();

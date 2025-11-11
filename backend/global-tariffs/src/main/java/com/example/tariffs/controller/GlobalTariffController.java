@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.Map;
 
+// rest endpoints for tariff definitions (global + admin modified)
 @RestController
 @Tag(name = "Global Tariff Definitions", description = "API endpoints for global/system tariff definitions")
 @RequestMapping("/api")
@@ -23,6 +24,7 @@ public class GlobalTariffController {
     }
 
     @Operation(summary = "Retrieve all tariff definitions (both global and user-defined)")
+    // GET /api/tariff-definitions -> combined view of tariffs
     @GetMapping("/tariff-definitions")
     public ResponseEntity<TariffDefinitionsResponse> getTariffDefinitions() {
         TariffDefinitionsResponse response = tariffService.getTariffDefinitions();
@@ -30,22 +32,22 @@ public class GlobalTariffController {
     }
 
     @Operation(summary = "Retrieve only global/system tariff definitions that is currently stored in the database.")
+    // GET /api/tariff-definitions/global -> view generated from database tariffs
     @GetMapping("/tariff-definitions/global")
     public ResponseEntity<TariffDefinitionsResponse> getGlobalTariffDefinitions() {
         return ResponseEntity.ok(tariffService.getGlobalTariffDefinitions());
     }
 
-    // Modified tariff definitions endpoints - these are called by API Gateway
-    // Since API Gateway handles authentication, we allow all requests here
     @Operation(summary = "Retrieve modified tariff definitions")
+    // GET /api/tariff-definitions/modified -> admin managed overrides
     @GetMapping("/tariff-definitions/modified")
     public ResponseEntity<TariffDefinitionsResponse> getModifiedTariffDefinitions() {
-        // API Gateway handles authentication, so we allow access here
         TariffDefinitionsResponse response = tariffService.getUserTariffDefinitions();
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Add a new tariff definition (saves to database)")
+    // POST /api/tariff-definitions/modified -> create admin override
     @PostMapping("/tariff-definitions/modified")
     public ResponseEntity<TariffDefinitionsResponse> addModifiedTariffDefinition(
             @RequestBody Map<String, Object> requestBody) {
@@ -58,6 +60,7 @@ public class GlobalTariffController {
     }
 
     @Operation(summary = "Update an existing tariff definition (updates database)")
+    // PUT /api/tariff-definitions/modified/{id} -> update admin override
     @PutMapping("/tariff-definitions/modified/{id}")
     public ResponseEntity<TariffDefinitionsResponse> updateModifiedTariffDefinition(
             @PathVariable String id,
@@ -73,6 +76,7 @@ public class GlobalTariffController {
     }
 
     @Operation(summary = "Delete a tariff definition (deletes from database)")
+    // DELETE /api/tariff-definitions/modified/{id} -> delete admin override
     @DeleteMapping("/tariff-definitions/modified/{id}")
     public ResponseEntity<?> deleteModifiedTariffDefinition(@PathVariable String id) {
         if (id == null || id.trim().isEmpty()) {
@@ -83,6 +87,7 @@ public class GlobalTariffController {
     }
 
     @Operation(summary = "Export tariff definitions as CSV")
+    // GET /api/tariff-definitions/export -> placeholder endpoint
     @GetMapping("/tariff-definitions/export")
     public void exportTariffDefinitions(jakarta.servlet.http.HttpServletResponse response) {
         // Export functionality to be implemented
