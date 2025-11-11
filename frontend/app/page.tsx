@@ -10,6 +10,7 @@ import { TariffDefinitionsTable } from "@/components/tariff-definitions-table"
 import { ExportCartWithHistory } from "@/components/export-cart-with-history"
 import { SimulatorCalculator } from "@/components/simulator-calculator"
 import { AdminDashboard } from "@/components/admin-dashboard"
+import { TradeInsightsView } from "@/components/trade-insights-view"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LogOut, User, Shield } from "lucide-react"
@@ -18,7 +19,7 @@ import { TariffComparisonPanel } from "@/components/tariff-comparison-panel"
 
 
 type AuthView = "login" | "signup"
-type DashboardView = "dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "admin"
+type DashboardView = "dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "trade-insights" | "admin"
 
 const API_BASE_URL = "http://localhost:8080/api"
 const EMPTY_CART_STATUS = 204
@@ -28,7 +29,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [authView, setAuthView] = useState<"login" | "signup">("login")
   const [calculationResults, setCalculationResults] = useState<any>(null)
-  const [currentView, setCurrentView] = useState<"dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "admin">("dashboard")
+  const [currentView, setCurrentView] = useState<DashboardView>("dashboard")
   const [cartCount, setCartCount] = useState<number>(0)
 
   const handleLogin = (userData: any) => {
@@ -333,6 +334,16 @@ export default function Home() {
                 >
                   Export Cart ({cartCount})
                 </button>
+                <button
+                  onClick={() => setCurrentView("trade-insights")}
+                  className={`px-3 py-2 text-sm font-medium rounded-md ${
+                    currentView === "trade-insights"
+                      ? "bg-slate-100 text-slate-900"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Trade Insights
+                </button>
                 {user.role === "admin" && (
                   <button
                     onClick={() => setCurrentView("admin")}
@@ -449,6 +460,10 @@ export default function Home() {
             </div>
             <ExportCartWithHistory onCartCountChange={fetchCartCount} />
           </>
+        )}
+
+        {currentView === "trade-insights" && (
+          <TradeInsightsView apiBaseUrl={API_BASE_URL} getAuthToken={getAuthToken} />
         )}
 
         {currentView === "admin" && user.role === "admin" && (

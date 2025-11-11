@@ -37,6 +37,9 @@ public class RoutingService {
     @Value("${services.csv-export.url:http://csv-export:8085}")
     private String csvExportUrl;
 
+    @Value("${services.trade-insights.url:http://trade-insights:8088}")
+    private String tradeInsightsUrl;
+
     public RoutingService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
@@ -68,6 +71,10 @@ public class RoutingService {
     
     public String getCsvExportUrl() {
         return csvExportUrl;
+    }
+
+    public String getTradeInsightsUrl() {
+        return tradeInsightsUrl;
     }
 
     public <T> ResponseEntity<T> forwardRequest(String targetUrl, HttpMethod method, 
