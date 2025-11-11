@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,12 +18,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.tariff.dto.BrandInfo;
+import com.example.tariff.dto.TariffComparisonDTO;
 import com.example.tariff.dto.TariffDTO;
 import com.example.tariff.dto.TariffDefinitionsResponse;
+import com.example.tariff.dto.TariffHistoryDTO;
 import com.example.tariff.dto.TariffResponse;
 import com.example.tariff.service.CsvExportService;
 import com.example.tariff.service.CurrencyService;
 import com.example.tariff.service.ModeManager;
+import com.example.tariff.service.TariffComparisonService;
 import com.example.tariff.service.TariffService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,6 +45,8 @@ public class TariffController {
     private final CsvExportService csvExportService;
     private final ModeManager modeManager;
     private final CurrencyService currencyService;
+    @Autowired
+    private TariffComparisonService comparisonService;
 
     public TariffController(TariffService tariffService, CsvExportService csvExportService,
             ModeManager modeManager, CurrencyService currencyService) {
@@ -278,5 +284,80 @@ public class TariffController {
 
         return ResponseEntity.ok(tariff);
 
+    }
+
+    @Operation(summary = "Compare tariffs across multiple importing countries for the same product")
+    @PostMapping("/tariffs/compare")
+    public ResponseEntity<TariffComparisonDTO> compareMultipleCountries(
+            @RequestBody ComparisonRequest request) {
+
+        // Validate request
+        if (request == null) {
+            throw new com.example.tariff.exception.BadRequestException("Request body is required");
+        }
+        if (request.getProduct() == null || request.getProduct().trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Product is required");
+        }
+        if (request.getBrand() == null || request.getBrand().trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Brand is required");
+        }
+        if (request.getExportingFrom() == null || request.getExportingFrom().trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Exporting country is required");
+        }
+        if (request.getImportingToCountries() == null || request.getImportingToCountries().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("At least one importing country is required");
+        }
+        if (request.getQuantity() <= 0) {
+            throw new com.example.tariff.exception.BadRequestException("Quantity must be greater than 0");
+        }
+
+        TariffComparisonDTO response = comparisonService.compareMultipleCountries(
+                request.getProduct(),
+                request.getBrand(),
+                request.getExportingFrom(),
+                request.getImportingToCountries(),
+                request.getQuantity(),
+                request.getCustomCost(),
+                request.getCurrency()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    // Story 2: Get tariff history/trends over time
+    @Operation(summary = "Get tariff rate history over a time period (currently using dummy data)")
+    @GetMapping("/tariffs/history")
+    public ResponseEntity<TariffHistoryDTO> getTariffHistory(
+            @RequestParam String product,
+            @RequestParam String brand,
+            @RequestParam String exportingFrom,
+            @RequestParam String importingTo,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+
+        // Validate inputs
+        if (product == null || product.trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Product is required");
+        }
+        if (brand == null || brand.trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Brand is required");
+        }
+        if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Exporting country is required");
+        }
+        if (importingTo == null || importingTo.trim().isEmpty()) {
+            throw new com.example.tariff.exception.BadRequestException("Importing country is required");
+        }
+
+        TariffHistoryDTO response = comparisonService.getTariffHistory(
+                product,
+                brand,
+                exportingFrom,
+                importingTo,
+                startDate,
+                endDate
+        );
+
+        return ResponseEntity.ok(response);
     }
 }
