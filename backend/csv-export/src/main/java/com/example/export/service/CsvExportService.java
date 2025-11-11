@@ -41,15 +41,14 @@ public class CsvExportService {
 
     // Helper method: write CSV header row for cart export
     private void writeCartHeader(PrintWriter writer) {
-        writer.println("ID,Product,Brand,Exporting From,Importing To,Quantity,Unit,Product Cost,Tariff Rate,Tariff Amount,Total Cost,Tariff Type,Source,Created At");
+        writer.println("ID,Product,Exporting From,Importing To,Quantity,Unit,Product Cost,Tariff Rate,Tariff Amount,Total Cost,Tariff Type,Source,Created At");
     }
 
     // Helper method: write data row for cart item
     private void writeCartData(PrintWriter writer, CalculationHistoryDto calc) {
-        writer.printf("%s,%s,%s,%s,%s,%.2f,%s,%.2f,%.2f%%,%.2f,%.2f,%s,%s,%s%n",
+        writer.printf("%s,%s,%s,%s,%.2f,%s,%.2f,%.2f%%,%.2f,%.2f,%s,%s,%s%n",
                 escapeCSV(calc.getId()),
                 escapeCSV(calc.getProductName()),
-                escapeCSV(calc.getBrand()),
                 escapeCSV(calc.getExportingFrom()),
                 escapeCSV(calc.getImportingTo()),
                 calc.getQuantity(),

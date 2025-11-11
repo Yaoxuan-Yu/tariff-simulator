@@ -15,9 +15,7 @@ interface SimulatorCalculatorProps {
 export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorProps = {}) {
   const [formData, setFormData] = useState({
     product: "",
-    brand: "",
-    brandCost: "",
-    brandUnit: "",
+    unit: "",
     exportingFrom: "",
     importingTo: "",
     tariffType: "percentage",
@@ -43,13 +41,12 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
     // Validate required fields
     if (
       !formData.product ||
-      !formData.brand ||
-      !formData.brandCost ||
-      !formData.brandUnit ||
+      !formData.unit ||
       !formData.exportingFrom ||
       !formData.importingTo ||
       !formData.tariffRate ||
-      !formData.quantity
+      !formData.quantity ||
+      !formData.customCost
     ) {
       setError("Please fill in all required fields")
       setIsLoading(false)
@@ -62,8 +59,8 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
       return
     }
 
-    if (Number.parseFloat(formData.brandCost) < 0) {
-      setError("Brand cost cannot be negative")
+    if (Number.parseFloat(formData.customCost) <= 0) {
+      setError("Unit cost must be greater than 0")
       setIsLoading(false)
       return
     }
@@ -77,13 +74,9 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
     try {
       // Calculate locally based on the input
       const quantity = Number.parseFloat(formData.quantity)
-      const brandCostPerUnit = Number.parseFloat(formData.brandCost)
+      const unitCost = Number.parseFloat(formData.customCost)
       const tariffRate = Number.parseFloat(formData.tariffRate)
-      const customCost = formData.customCost ? Number.parseFloat(formData.customCost) : null
-
-      // Use custom cost if provided, otherwise use brand cost
-      const effectiveCostPerUnit = customCost !== null ? customCost : brandCostPerUnit
-      const productCost = effectiveCostPerUnit * quantity
+      const productCost = unitCost * quantity
 
       let tariffCost = 0
       if (formData.tariffType === "percentage") {
@@ -93,31 +86,31 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
       }
 
       const totalCost = productCost + tariffCost
+      const unitLabel = formData.unit
 
       // Create breakdown array matching the ResultsTable format
       const breakdown = [
         {
-          description: `${formData.product} (${formData.brand})`,
+          description: `${formData.product}`,
           type: "Product Cost",
-          rate: `$${effectiveCostPerUnit.toFixed(2)}/${formData.brandUnit}`,
+          rate: `$${unitCost.toFixed(2)}/${unitLabel || "unit"}`,
           amount: productCost
         },
         {
           description: `Tariff from ${formData.exportingFrom} to ${formData.importingTo}`,
           type: "Tariff",
-          rate: formData.tariffType === "percentage" ? `${tariffRate}%` : `$${tariffRate}/${formData.brandUnit}`,
+          rate: formData.tariffType === "percentage" ? `${tariffRate}%` : `$${tariffRate}/${unitLabel || "unit"}`,
           amount: tariffCost
         }
       ]
 
       const result = {
         product: formData.product,
-        brand: formData.brand,
         exportingFrom: formData.exportingFrom,
         importingTo: formData.importingTo,
         quantity: quantity,
-        unit: formData.brandUnit,
-        costPerUnit: effectiveCostPerUnit,
+        unit: unitLabel,
+        costPerUnit: unitCost,
         productCost: productCost,
         tariffType: formData.tariffType === "percentage" ? `${tariffRate}% Tariff` : `$${tariffRate} Fixed Tariff`,
         tariffRate: tariffRate,
@@ -139,12 +132,12 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
             success: true,
             data: {
               product: result.product,
-              brand: result.brand,
               exportingFrom: result.exportingFrom,
               importingTo: result.importingTo,
               quantity: result.quantity,
               unit: result.unit,
               productCost: result.productCost,
+              costPerUnit: result.costPerUnit,
               totalCost: result.totalCost,
               tariffRate: result.tariffRate,
               tariffType: result.tariffType,
@@ -249,36 +242,12 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Brand *</label>
-                <Input
-                  type="text"
-                  value={formData.brand}
-                  onChange={(e) => handleInputChange("brand", e.target.value)}
-                  placeholder="e.g., Fresh Farms, Generic Brand"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Brand Cost per Unit (USD) *</label>
-                <Input
-                  type="number"
-                  value={formData.brandCost}
-                  onChange={(e) => handleInputChange("brandCost", e.target.value)}
-                  placeholder="e.g., 2.50"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-
-              <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">Unit *</label>
                 <Input
                   type="text"
-                  value={formData.brandUnit}
-                  onChange={(e) => handleInputChange("brandUnit", e.target.value)}
-                  placeholder="e.g., kg, lbs, unit"
+                  value={formData.unit}
+                  onChange={(e) => handleInputChange("unit", e.target.value)}
+                  placeholder="e.g., kg, lbs, units"
                 />
               </div>
             </div>
@@ -337,7 +306,7 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-muted-foreground">
-                  Quantity * {formData.brandUnit ? `(${formData.brandUnit})` : ""}
+                  Quantity * {formData.unit ? `(${formData.unit})` : ""}
                 </label>
                 <Input
                   type="number"
@@ -350,12 +319,12 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Custom Cost (USD)</label>
+                <label className="text-sm font-medium text-muted-foreground">Unit Cost (USD) *</label>
                 <Input
                   type="number"
                   value={formData.customCost}
                   onChange={(e) => handleInputChange("customCost", e.target.value)}
-                  placeholder="Override cost per unit"
+                  placeholder="e.g., 2.50"
                   min="0"
                   step="0.01"
                 />

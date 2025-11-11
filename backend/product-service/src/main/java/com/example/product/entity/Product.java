@@ -1,7 +1,7 @@
 package com.example.product.entity;
 import jakarta.persistence.*;
 
-// retrieves product information like id, hsCode, name, brand, cost and unit from the Products (Test) table in supabase 
+// retrieves product information like id, hsCode, name, cost and unit from the Products (Test) table in supabase
 @Entity
 @Table(name = "\"Products (Test)\"")
 public class Product {
@@ -12,8 +12,6 @@ public class Product {
     private String hsCode;
     @Column(name = "\"product\"")
     private String name;
-    @Column(name = "\"brand\"")
-    private String brand;
     @Column(name = "\"product_cost_usd\"")
     private Double cost;
     @Column(name = "\"unit\"")
@@ -25,8 +23,6 @@ public class Product {
     public void setHsCode(String hsCode) { this.hsCode = hsCode; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public String getBrand() { return brand; }
-    public void setBrand(String brand) { this.brand = brand; }
     public Double getCost() { return cost; }
     public void setCost(Double cost) { this.cost = cost; }
     public String getUnit() { return unit; }

@@ -5,14 +5,13 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.product.dto.BrandInfo;
 import com.example.product.service.ProductService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@Tag(name = "Product Catalog", description = "API endpoints for products, brands, and countries")
+@Tag(name = "Product Catalog", description = "API endpoints for products and countries")
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 public class ProductController {
@@ -38,15 +37,6 @@ public class ProductController {
     @GetMapping("/products")
     public ResponseEntity<List<String>> getAllProducts() {
         return ResponseEntity.ok(productService.getAllProducts());
-    }
-
-    @Operation(summary = "Get available brands for a specific product")
-    @GetMapping("/brands")
-    public ResponseEntity<List<BrandInfo>> getBrandsByProduct(@RequestParam String product) {
-        if (product == null || product.trim().isEmpty()) {
-            throw new com.example.product.exception.BadRequestException("Product is required");
-        }
-        return ResponseEntity.ok(productService.getBrandsByProduct(product));
     }
 }
 

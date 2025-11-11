@@ -35,7 +35,6 @@ public class SessionHistoryServiceTest {
         testCalculationData = new HashMap<>();
         Map<String, Object> data = new HashMap<>();
         data.put("product", "Test Product");
-        data.put("brand", "Test Brand");
         data.put("exportingFrom", "Singapore");
         data.put("importingTo", "China");
         data.put("quantity", 2.0);

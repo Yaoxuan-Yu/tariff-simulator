@@ -26,7 +26,6 @@ public class TariffResponse {
     public void setError(String error) { this.error = error; }
     public static class TariffCalculationData {
         private String product;
-        private String brand;
         private String exportingFrom;
         private String importingTo;
         private double quantity;
@@ -39,11 +38,10 @@ public class TariffResponse {
 
         public TariffCalculationData() {}
 
-        public TariffCalculationData(String product, String brand, String exportingFrom, String importingTo,
+        public TariffCalculationData(String product, String exportingFrom, String importingTo,
                                    double quantity, String unit, double productCost, double totalCost,
                                    double tariffRate, String tariffType, List<BreakdownItem> breakdown) {
             this.product = product;
-            this.brand = brand;
             this.exportingFrom = exportingFrom;
             this.importingTo = importingTo;
             this.quantity = quantity;
@@ -57,8 +55,6 @@ public class TariffResponse {
 
         public String getProduct() { return product; }
         public void setProduct(String product) { this.product = product; }
-        public String getBrand() { return brand; }
-        public void setBrand(String brand) { this.brand = brand; }
         public String getExportingFrom() { return exportingFrom; }
         public void setExportingFrom(String exportingFrom) { this.exportingFrom = exportingFrom; }
         public String getImportingTo() { return importingTo; }

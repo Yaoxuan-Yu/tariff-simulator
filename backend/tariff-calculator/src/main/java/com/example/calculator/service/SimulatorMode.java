@@ -14,7 +14,6 @@ public class SimulatorMode implements TariffMode {
         String importCountry,
         String exportCountry,
         String product,
-        // String brand,
         double quantity,
         String customCost
     ) {

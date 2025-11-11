@@ -54,7 +54,7 @@ public class TariffService {
 
     public TariffDefinitionsResponse getTariffDefinitions() {
         try {
-            // Use distinct product names to avoid duplicating rows per brand in definitions
+            // Use distinct product names to avoid duplicating rows in definitions
             List<String> products = productRepository.findDistinctProducts();
             List<Tariff> tariffs = tariffRepository.findAll();
             

@@ -51,18 +51,5 @@ public class ProductRoutingController {
         ResponseEntity<?> response = routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
         return (ResponseEntity<List<String>>) response;
     }
-
-    @GetMapping("/brands")
-    public ResponseEntity<?> getBrands(HttpServletRequest request) {
-        String queryString = request.getQueryString();
-        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
-        java.net.URI targetUri = routingService.buildTargetUri(
-            routingService.getProductServiceUrl(), 
-            "/api/brands", 
-            queryString
-        );
-        ResponseEntity<?> response = routingService.forwardRequest(targetUri, HttpMethod.GET, entity, Object.class);
-        return response;
-    }
 }
 

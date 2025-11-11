@@ -21,7 +21,6 @@ import {
 interface CartItem {
   id: string
   productName: string
-  brand: string
   exportingFrom: string
   importingTo: string
   quantity: number
@@ -426,7 +425,7 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
                               <td className="py-3 px-4">
                                 <div className="flex flex-col gap-1.5">
                                   <div className="font-medium text-foreground">
-                                    {item.productName} <span className="text-muted-foreground">({item.brand})</span>
+                                    {item.productName}
                                   </div>
                                   {item.source && (
                                     <Badge 
@@ -539,7 +538,7 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
                             onClick={() => handleSelectHistoryItem(item.id)}
                           >
                             <div className="font-medium text-sm text-foreground truncate">
-                              {item.productName} <span className="text-muted-foreground">({item.brand})</span>
+                              {item.productName}
                             </div>
                             {item.source && (
                               <Badge 

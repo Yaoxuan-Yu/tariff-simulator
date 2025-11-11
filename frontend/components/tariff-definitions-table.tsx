@@ -275,7 +275,6 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
   }, [userRole, simulatorMode])
 
   const validateAllFieldsFilled = (): boolean => {
->>>>>>> feature/integration-user-access
     if (
       !newTariff.product ||
       !newTariff.exportingFrom ||

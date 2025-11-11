@@ -38,7 +38,6 @@ public class SessionHistoryService {
 
             CalculationHistoryDto history = new CalculationHistoryDto(
                 (String) data.getOrDefault("product", ""),
-                (String) data.getOrDefault("brand", ""),
                 (String) data.getOrDefault("exportingFrom", ""),
                 (String) data.getOrDefault("importingTo", ""),
                 ((Number) data.getOrDefault("quantity", 0.0)).doubleValue(),

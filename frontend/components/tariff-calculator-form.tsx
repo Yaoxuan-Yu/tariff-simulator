@@ -27,18 +27,16 @@ const INITIAL_QUANTITY = "1"
 
 interface FormData {
   product: string
-  brand: string
   exportingFrom: string
   importingTo: string
   quantity: string
   customCost: string
   calculationDate: string
-  currency?: string  // added currency here
+  currency?: string
 }
 
 const createInitialFormData = (): FormData => ({
   product: "",
-  brand: "",
   exportingFrom: "",
   importingTo: "",
   quantity: INITIAL_QUANTITY,
@@ -51,10 +49,8 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
   const [formData, setFormData] = useState<FormData>(createInitialFormData())
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [availableBrands, setAvailableBrands] = useState<any[]>([])
   const [products, setProducts] = useState<string[]>([])
   const [countries, setCountries] = useState<string[]>([])
-  const [userTariffs, setUserTariffs] = useState<any[]>([])
   const [availableCurrencies, setAvailableCurrencies] = useState<Currency[]>([]) // <-- currency state
 
   const clearError = () => {
@@ -112,7 +108,6 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
     const data = await fetchDataWithAuth('/tariff-definitions/user')
     
     if (data.success && Array.isArray(data.data)) {
-      setUserTariffs(data.data)
       setProducts(extractUniqueProducts(data.data))
       setCountries(extractUniqueCountries(data.data))
     } else {
@@ -121,7 +116,6 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
   }
 
   const resetUserData = () => {
-    setUserTariffs([])
     setProducts([])
     setCountries([])
   }
@@ -141,19 +135,43 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
 
   const resetForm = () => {
     setFormData(createInitialFormData())
-    setAvailableBrands([])
   }
 
+const FALLBACK_CURRENCIES: Currency[] = [
+  { code: "USD", name: "United States Dollar", rate: 1.0, lastUpdated: new Date().toISOString().split("T")[0] },
+  { code: "SGD", name: "Singapore Dollar", rate: 1.35, lastUpdated: new Date().toISOString().split("T")[0] },
+  { code: "EUR", name: "Euro", rate: 0.93, lastUpdated: new Date().toISOString().split("T")[0] },
+  { code: "CNY", name: "Chinese Yuan", rate: 7.12, lastUpdated: new Date().toISOString().split("T")[0] },
+]
+
+let hasLoadedCurrencies = false
+
 const loadMockCurrencies = async () => {
+  if (hasLoadedCurrencies) {
+    return
+  }
+
+  hasLoadedCurrencies = true
+
   try {
     const response = await fetch("http://localhost:8089/currency")
-    const data = await response.json()
-    if (Array.isArray(data)) {
-      setAvailableCurrencies(data)
-      setFormData((prev) => ({ ...prev, currency: "USD" }))
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
     }
+
+    const data = await response.json()
+    if (Array.isArray(data) && data.length > 0) {
+      setAvailableCurrencies(data)
+      setFormData((prev) => ({ ...prev, currency: data[0]?.code || FALLBACK_CURRENCIES[0].code }))
+      return
+    }
+
+    throw new Error("Unexpected currency payload")
   } catch (err) {
-    console.error("Failed to load currencies:", err)
+    console.warn("Failed to load currencies from mock service, using fallback list instead.", err)
+    setAvailableCurrencies(FALLBACK_CURRENCIES)
+    setFormData((prev) => ({ ...prev, currency: FALLBACK_CURRENCIES[0].code }))
   }
 }
 
@@ -163,32 +181,14 @@ const loadMockCurrencies = async () => {
     loadMockCurrencies()
   }, [tariffSource])
 
-  // --- Existing brand/product logic remains unchanged ---
-  const loadBrandsForProduct = async (product: string) => {
-    try {
-      const brandsData = await fetchDataWithAuth(`/brands?product=${encodeURIComponent(product)}`)
-      const brands = Array.isArray(brandsData) ? brandsData : []
-      setAvailableBrands(brands)
-    } catch (error) {
-      console.error('Error loading brands:', error)
-      setAvailableBrands([])
-    }
-  }
-
-  const handleProductChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, product: value, brand: "" }))
-    loadBrandsForProduct(value)
-  }
-
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     clearError()
-    if (field === "product") handleProductChange(value)
   }
 
   // --- validation, calculation, and filtering logic remain unchanged ---
   const validateRequiredFields = (): boolean => {
-    if (!formData.product || !formData.exportingFrom || !formData.importingTo || !formData.quantity) {
+    if (!formData.product || !formData.exportingFrom || !formData.importingTo || !formData.quantity || !formData.customCost) {
       setError("Please fill in all required fields")
       return false
     }
@@ -203,7 +203,16 @@ const loadMockCurrencies = async () => {
     return true
   }
 
-  const validateFormData = (): boolean => validateRequiredFields() && validateQuantity()
+  const validateCustomCost = (): boolean => {
+    const parsed = Number.parseFloat(formData.customCost)
+    if (Number.isNaN(parsed) || parsed <= MINIMUM_QUANTITY) {
+      setError("Unit cost must be greater than 0")
+      return false
+    }
+    return true
+  }
+
+  const validateFormData = (): boolean => validateRequiredFields() && validateQuantity() && validateCustomCost()
 
   const buildQueryParams = (): URLSearchParams => {
     const params = new URLSearchParams({
@@ -212,7 +221,7 @@ const loadMockCurrencies = async () => {
       importingTo: formData.importingTo,
       quantity: formData.quantity,
     })
-    if (formData.customCost) params.append('customCost', formData.customCost)
+    params.append('customCost', formData.customCost)
     if (!isGlobalTariffSource()) params.append('mode', 'user')
     return params
   }
@@ -432,12 +441,12 @@ const loadMockCurrencies = async () => {
           {/* Row 3: Custom Cost + Currency */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Custom Cost (USD)</label>
+              <label className="text-sm font-medium text-muted-foreground">Unit Cost (USD)</label>
               <Input
                 type="number"
                 value={formData.customCost}
                 onChange={(e) => handleInputChange("customCost", e.target.value)}
-                placeholder="Override brand cost"
+                placeholder="Enter cost per unit"
                 min={MINIMUM_QUANTITY}
                 step={QUANTITY_STEP}
               />

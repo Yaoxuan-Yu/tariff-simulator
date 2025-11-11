@@ -41,7 +41,6 @@ public class TariffCalculationController {
     @GetMapping("/tariff")
     public ResponseEntity<TariffResponse> calculateTariff(
             @RequestParam String product,
-            @RequestParam(required = false) String brand,
             @RequestParam String exportingFrom,
             @RequestParam String importingTo,
             @RequestParam double quantity,
@@ -54,9 +53,6 @@ public class TariffCalculationController {
         if (product == null || product.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Product is required");
         }
-        // if (brand == null || brand.trim().isEmpty()) {
-        //     throw new com.example.calculator.exception.BadRequestException("Brand is required");
-        // }
         if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Exporting country is required");
         }
@@ -112,7 +108,6 @@ public class TariffCalculationController {
                 Map<String, Object> dataMap = new HashMap<>();
                 TariffResponse.TariffCalculationData data = response.getData();
                 dataMap.put("product", data.getProduct());
-                dataMap.put("brand", data.getBrand() != null ? data.getBrand() : "N/A");
                 dataMap.put("exportingFrom", data.getExportingFrom());
                 dataMap.put("importingTo", data.getImportingTo());
                 dataMap.put("quantity", data.getQuantity());

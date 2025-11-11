@@ -35,8 +35,16 @@ public class CsvExportServiceTest {
     public void setUp() {
         testCartItems = new ArrayList<>();
         CalculationHistoryDto calc1 = new CalculationHistoryDto(
-            "Product 1", "Brand 1", "Singapore", "China",
-            2.0, "piece", 20.0, 15.0, 3.0, 23.0, "MFN"
+            "Product 1",
+            "Singapore",
+            "China",
+            2.0,
+            "piece",
+            20.0,
+            15.0,
+            3.0,
+            23.0,
+            "MFN"
         );
         testCartItems.add(calc1);
     }

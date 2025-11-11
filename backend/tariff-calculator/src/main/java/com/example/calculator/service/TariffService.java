@@ -53,7 +53,7 @@ public class TariffService {
             }
 
             try {
-                // 🔹 Find product by name only (brand removed)
+                // 🔹 Find product by name only
                 List<Product> products = productRepository.findByName(productName);
                 if (products.isEmpty()) {
                     return new TariffResponse(false, "Product not found in database");
@@ -80,7 +80,6 @@ public class TariffService {
 
                 TariffResponse.TariffCalculationData data = new TariffResponse.TariffCalculationData(
                         selectedProduct.getName(),
-                        null, // brand removed
                         exportingFrom,
                         importingTo,
                         quantity,
@@ -183,7 +182,6 @@ public class TariffService {
 
             TariffResponse.TariffCalculationData data = new TariffResponse.TariffCalculationData(
                     selectedProduct.getName(),
-                    null, // brand removed
                     exportingFrom,
                     importingTo,
                     quantity,
