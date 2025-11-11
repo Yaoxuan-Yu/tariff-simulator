@@ -15,7 +15,8 @@ public class SimulatorMode implements TariffMode {
         String exportCountry,
         String product,
         double quantity,
-        String customCost
+        String customCost,
+        String currency
     ) {
         // Note: SimulatorMode needs HttpSession, but TariffMode interface doesn't support it
         // This will need to be handled differently - either pass session through ModeManager

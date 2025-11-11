@@ -150,10 +150,6 @@ export function ResultsTable({ results, onAddToCart }: ResultsTableProps) {
     return null
   }
 
-  const getProductDisplayText = (): string => {
-    return `${data.product} (Brand: ${data.brand})`
-  }
-
   const getRouteDisplayText = (): string => {
     return `${data.exportingFrom} → ${data.importingTo}`
   }
@@ -162,12 +158,25 @@ export function ResultsTable({ results, onAddToCart }: ResultsTableProps) {
     return `${data.quantity} x ${data.unit}`
   }
 
+  const currencyCode = data?.currency || "USD"
+
+  const formatCurrency = (value: number): string => {
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currencyCode,
+      }).format(value)
+    } catch (err) {
+      return `${currencyCode} ${value.toFixed(2)}`
+    }
+  }
+
   const getProductCostDisplayText = (): string => {
-    return `Total Product Cost: $${data.productCost.toFixed(2)}`
+    return `Total Product Cost: ${formatCurrency(data.productCost)}`
   }
 
   const getTotalCostDisplayText = (): string => {
-    return `$${data.totalCost.toFixed(2)}`
+    return formatCurrency(data.totalCost)
   }
 
   const getBadgeClassName = (type: string): string => {
@@ -230,7 +239,7 @@ export function ResultsTable({ results, onAddToCart }: ResultsTableProps) {
               <div>
                 <p className="text-muted-foreground">Product</p>
                 <p className="font-medium">{data.product}</p>
-                <p className="text-xs text-muted-foreground">Brand: {data.brand}</p>
+                <p className="text-xs text-muted-foreground">Currency: {currencyCode}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Route</p>
@@ -269,7 +278,7 @@ export function ResultsTable({ results, onAddToCart }: ResultsTableProps) {
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-right text-muted-foreground">{item.rate}</td>
-                    <td className="py-3 px-4 text-right font-medium text-foreground">${item.amount.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-medium text-foreground">{formatCurrency(item.amount)}</td>
                   </tr>
                 ))}
                 <tr className="border-t-2 border-border bg-muted/50">

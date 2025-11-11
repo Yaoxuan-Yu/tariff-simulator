@@ -5,7 +5,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,7 +47,6 @@ public class TariffComparisonService {
      */
     public TariffComparisonDTO compareMultipleCountries(
             String product,
-            String brand,
             String exportingFrom,
             List<String> importingToCountries,
             double quantity,
@@ -54,7 +55,7 @@ public class TariffComparisonService {
 
         try {
             // Validate inputs
-            validateComparisonInputs(product, brand, exportingFrom, importingToCountries, quantity);
+            validateComparisonInputs(product, exportingFrom, importingToCountries, quantity);
 
             // Get product details
             List<Product> products = productRepository.findByName(product);
@@ -62,7 +63,6 @@ public class TariffComparisonService {
                 throw new NotFoundException("Product not found: " + product);
             }
             Product selectedProduct = products.get(0);
-            String selectedBrand = (brand != null && !brand.trim().isEmpty()) ? brand : "N/A";
 
             // Calculate unit cost
             double unitCost = (customCost != null && !customCost.isEmpty())
@@ -71,9 +71,7 @@ public class TariffComparisonService {
             double productCost = unitCost * quantity;
 
             // Target currency
-            String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
-
-            // Build comparisons for each country
+            String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : "USD";
             List<TariffComparisonDTO.CountryComparison> comparisons = new ArrayList<>();
             for (String importingTo : importingToCountries) {
                 TariffComparisonDTO.CountryComparison comparison = buildCountryComparison(
@@ -100,7 +98,6 @@ public class TariffComparisonService {
             // Build response
             TariffComparisonDTO.ComparisonData data = new TariffComparisonDTO.ComparisonData(
                     selectedProduct.getName(),
-                    selectedBrand,
                     exportingFrom,
                     quantity,
                     selectedProduct.getUnit(),
@@ -124,7 +121,6 @@ public class TariffComparisonService {
      */
     public TariffHistoryDTO getTariffHistory(
             String product,
-            String brand,
             String exportingFrom,
             String importingTo,
             String startDate,
@@ -134,9 +130,6 @@ public class TariffComparisonService {
             // Validate inputs
             if (product == null || product.trim().isEmpty()) {
                 throw new ValidationException("Product is required");
-            }
-            if (brand == null || brand.trim().isEmpty()) {
-                throw new ValidationException("Brand is required");
             }
             if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
                 throw new ValidationException("Exporting country is required");
@@ -151,7 +144,6 @@ public class TariffComparisonService {
                 throw new NotFoundException("Product not found: " + product);
             }
             Product selectedProduct = products.get(0);
-            String selectedBrand = (brand != null && !brand.trim().isEmpty()) ? brand : "N/A";
 
             // Get current tariff data
             Tariff currentTariff = tariffRepository.findByCountryAndPartner(importingTo, exportingFrom)
@@ -174,7 +166,6 @@ public class TariffComparisonService {
             // Build response
             TariffHistoryDTO.HistoryData data = new TariffHistoryDTO.HistoryData(
                     selectedProduct.getName(),
-                    selectedBrand,
                     exportingFrom,
                     importingTo,
                     startDate != null ? startDate : "2024-01-01",
@@ -192,14 +183,88 @@ public class TariffComparisonService {
         }
     }
 
+    public List<Map<String, Object>> getTariffTrends(
+            List<String> importCountries,
+            List<String> exportCountries,
+            List<String> products,
+            String startDate,
+            String endDate) {
+
+        if (importCountries == null || importCountries.isEmpty()) {
+            throw new ValidationException("At least one importing country is required");
+        }
+        if (exportCountries == null || exportCountries.isEmpty()) {
+            throw new ValidationException("At least one exporting country is required");
+        }
+        if (products == null || products.isEmpty()) {
+            throw new ValidationException("At least one product is required");
+        }
+
+        List<Map<String, Object>> seriesList = new ArrayList<>();
+
+        for (String importCountry : importCountries) {
+            for (String exportCountry : exportCountries) {
+                for (String product : products) {
+                    List<Product> productEntities = productRepository.findByName(product);
+                    if (productEntities == null || productEntities.isEmpty()) {
+                        continue; // Skip unknown products
+                    }
+
+                    Tariff tariff = tariffRepository.findByCountryAndPartner(importCountry, exportCountry)
+                            .orElse(null);
+                    if (tariff == null) {
+                        continue; // Skip missing tariff data
+                    }
+
+                    boolean hasFTA = FTA_COUNTRIES.contains(importCountry) && FTA_COUNTRIES.contains(exportCountry);
+                    Double ahs = tariff.getAhsWeighted();
+                    Double mfn = tariff.getMfnWeighted();
+
+                    double baseRate;
+                    if (Boolean.TRUE.equals(hasFTA)) {
+                        baseRate = ahs != null ? ahs : (mfn != null ? mfn : 0.0);
+                    } else {
+                        baseRate = mfn != null ? mfn : (ahs != null ? ahs : 0.0);
+                    }
+
+                    if (baseRate == 0.0 && ahs == null && mfn == null) {
+                        continue; // No usable rate values
+                    }
+
+                    // Generate historical data (placeholder)
+                    List<TariffHistoryDTO.TimePoint> timePoints = generateDummyHistoricalData(
+                            startDate, endDate, baseRate, hasFTA ? "AHS" : "MFN",
+                            ahs != null ? ahs : baseRate,
+                            mfn != null ? mfn : baseRate);
+
+                    List<Map<String, Object>> dataPoints = new ArrayList<>();
+                    for (TariffHistoryDTO.TimePoint point : timePoints) {
+                        Map<String, Object> pointMap = new HashMap<>();
+                        pointMap.put("date", point.getDate());
+                        pointMap.put("rate", point.getTariffRate());
+                        pointMap.put("ahsRate", point.getAhsRate());
+                        pointMap.put("mfnRate", point.getMfnRate());
+                        dataPoints.add(pointMap);
+                    }
+
+                    Map<String, Object> series = new HashMap<>();
+                    series.put("importCountry", importCountry);
+                    series.put("exportCountry", exportCountry);
+                    series.put("product", product);
+                    series.put("dataPoints", dataPoints);
+                    seriesList.add(series);
+                }
+            }
+        }
+
+        return seriesList;
+    }
+
     // Helper methods
-    private void validateComparisonInputs(String product, String brand, String exportingFrom,
+    private void validateComparisonInputs(String product, String exportingFrom,
             List<String> importingToCountries, double quantity) {
         if (product == null || product.trim().isEmpty()) {
             throw new ValidationException("Product is required");
-        }
-        if (brand == null || brand.trim().isEmpty()) {
-            throw new ValidationException("Brand is required");
         }
         if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
             throw new ValidationException("Exporting country is required");

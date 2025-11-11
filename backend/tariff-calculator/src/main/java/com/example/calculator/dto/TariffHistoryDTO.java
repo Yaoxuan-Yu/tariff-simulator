@@ -56,7 +56,6 @@ public class TariffHistoryDTO {
     public static class HistoryData {
 
         private String product;
-        private String brand;
         private String exportingFrom;
         private String importingTo;
         private String startDate;
@@ -67,11 +66,10 @@ public class TariffHistoryDTO {
         public HistoryData() {
         }
 
-        public HistoryData(String product, String brand, String exportingFrom,
+        public HistoryData(String product, String exportingFrom,
                 String importingTo, String startDate, String endDate,
                 List<TimePoint> timePoints, ChartData chartData) {
             this.product = product;
-            this.brand = brand;
             this.exportingFrom = exportingFrom;
             this.importingTo = importingTo;
             this.startDate = startDate;
@@ -87,14 +85,6 @@ public class TariffHistoryDTO {
 
         public void setProduct(String product) {
             this.product = product;
-        }
-
-        public String getBrand() {
-            return brand;
-        }
-
-        public void setBrand(String brand) {
-            this.brand = brand;
         }
 
         public String getExportingFrom() {

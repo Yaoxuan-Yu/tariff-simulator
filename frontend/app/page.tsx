@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LogOut, User, Shield } from "lucide-react"
 import { TariffTrendsVisualization } from "@/components/tariff-trends-visualization"
+import { TariffComparisonPanel } from "@/components/tariff-comparison-panel"
 
 
 type AuthView = "login" | "signup"
@@ -400,6 +401,8 @@ export default function Home() {
                 </CardContent>
               </Card>
             </div>
+
+            <TariffComparisonPanel />
 
             {calculationResults && (
               <div className="mb-8">

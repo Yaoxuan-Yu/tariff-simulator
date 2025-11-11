@@ -5,7 +5,6 @@ import java.util.List;
 public class TariffComparisonRequest {
 
     private String product;
-    private String brand;
     private String exportingFrom;
     private List<String> importingToCountries;
     private double quantity;
@@ -21,14 +20,6 @@ public class TariffComparisonRequest {
 
     public void setProduct(String product) {
         this.product = product;
-    }
-
-    public String getBrand() {
-        return brand;
-    }
-
-    public void setBrand(String brand) {
-        this.brand = brand;
     }
 
     public String getExportingFrom() {

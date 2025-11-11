@@ -55,7 +55,6 @@ public class TariffComparisonDTO {
     public static class ComparisonData {
 
         private String product;
-        private String brand;
         private String exportingFrom;
         private double quantity;
         private String unit;
@@ -67,12 +66,11 @@ public class TariffComparisonDTO {
         public ComparisonData() {
         }
 
-        public ComparisonData(String product, String brand, String exportingFrom,
+        public ComparisonData(String product, String exportingFrom,
                 double quantity, String unit, double productCostPerUnit,
                 String currency, List<CountryComparison> comparisons,
                 ChartData chartData) {
             this.product = product;
-            this.brand = brand;
             this.exportingFrom = exportingFrom;
             this.quantity = quantity;
             this.unit = unit;
@@ -89,14 +87,6 @@ public class TariffComparisonDTO {
 
         public void setProduct(String product) {
             this.product = product;
-        }
-
-        public String getBrand() {
-            return brand;
-        }
-
-        public void setBrand(String brand) {
-            this.brand = brand;
         }
 
         public String getExportingFrom() {

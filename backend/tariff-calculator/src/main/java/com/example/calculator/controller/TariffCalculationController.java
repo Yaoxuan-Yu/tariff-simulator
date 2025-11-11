@@ -45,6 +45,7 @@ public class TariffCalculationController {
             @RequestParam String importingTo,
             @RequestParam double quantity,
             @RequestParam(required = false) String customCost,
+            @RequestParam(required = false, defaultValue = "USD") String currency,
             @RequestParam(required = false) String mode,
             @RequestParam(required = false) String userTariffId,
             HttpSession session) {
@@ -82,6 +83,7 @@ public class TariffCalculationController {
                 importingTo,
                 quantity,
                 customCost,
+                currency,
                 "user",
                 userTariffId,
                 session
@@ -94,7 +96,8 @@ public class TariffCalculationController {
                 exportingFrom,
                 product,
                 quantity,
-                customCost
+                customCost,
+                currency
             );
         }
 
@@ -116,6 +119,7 @@ public class TariffCalculationController {
                 dataMap.put("totalCost", data.getTotalCost());
                 dataMap.put("tariffRate", data.getTariffRate());
                 dataMap.put("tariffType", data.getTariffType());
+                dataMap.put("currency", data.getCurrency());
                 
                 calculationData.put("data", dataMap);
                 

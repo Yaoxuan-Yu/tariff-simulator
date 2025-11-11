@@ -134,7 +134,46 @@ export function TariffCalculatorForm({ onCalculationComplete, tariffSource }: Ta
   }
 
   const resetForm = () => {
-    setFormData(createInitialFormData())
+    setFormData((prev) => {
+      const next = createInitialFormData()
+      return { ...next, currency: prev.currency || next.currency }
+    })
+  }
+
+  const loadCurrencies = async () => {
+    try {
+      const token = await getAuthToken()
+      const response = await fetch(`${API_BASE_URL}/tariffs/currencies`, {
+        headers: createAuthHeaders(token),
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to load currencies: ${response.status}`)
+      }
+
+      const payload = await response.json()
+      const currencies = Array.isArray(payload?.currency) ? (payload.currency as Currency[]) : []
+
+      if (currencies.length === 0) {
+        throw new Error("Currency list is empty")
+      }
+
+      setAvailableCurrencies(currencies)
+      setFormData((prev) => ({
+        ...prev,
+        currency: prev.currency && currencies.some((c) => c.code === prev.currency)
+          ? prev.currency
+          : currencies[0].code,
+      }))
+    } catch (err) {
+      console.warn("Failed to load currencies from API, using fallback list instead.", err)
+      setAvailableCurrencies(FALLBACK_CURRENCIES)
+      setFormData((prev) => ({
+        ...prev,
+        currency: prev.currency || FALLBACK_CURRENCIES[0].code,
+      }))
+    }
   }
 
 const FALLBACK_CURRENCIES: Currency[] = [
@@ -144,41 +183,10 @@ const FALLBACK_CURRENCIES: Currency[] = [
   { code: "CNY", name: "Chinese Yuan", rate: 7.12, lastUpdated: new Date().toISOString().split("T")[0] },
 ]
 
-let hasLoadedCurrencies = false
-
-const loadMockCurrencies = async () => {
-  if (hasLoadedCurrencies) {
-    return
-  }
-
-  hasLoadedCurrencies = true
-
-  try {
-    const response = await fetch("http://localhost:8089/currency")
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const data = await response.json()
-    if (Array.isArray(data) && data.length > 0) {
-      setAvailableCurrencies(data)
-      setFormData((prev) => ({ ...prev, currency: data[0]?.code || FALLBACK_CURRENCIES[0].code }))
-      return
-    }
-
-    throw new Error("Unexpected currency payload")
-  } catch (err) {
-    console.warn("Failed to load currencies from mock service, using fallback list instead.", err)
-    setAvailableCurrencies(FALLBACK_CURRENCIES)
-    setFormData((prev) => ({ ...prev, currency: FALLBACK_CURRENCIES[0].code }))
-  }
-}
-
   useEffect(() => {
     resetForm()
     loadInitialData()
-    loadMockCurrencies()
+    loadCurrencies()
   }, [tariffSource])
 
   const handleInputChange = (field: string, value: string) => {
@@ -222,6 +230,7 @@ const loadMockCurrencies = async () => {
       quantity: formData.quantity,
     })
     params.append('customCost', formData.customCost)
+    params.append('currency', formData.currency || "USD")
     if (!isGlobalTariffSource()) params.append('mode', 'user')
     return params
   }
@@ -278,6 +287,7 @@ const loadMockCurrencies = async () => {
           data: {
             ...calculationData,
             source: isGlobalTariffSource() ? "global" : "user",
+            currency: calculationData.currency,
           },
         },
       }
@@ -306,6 +316,10 @@ const loadMockCurrencies = async () => {
     if (!result.success || !result.data) {
       setError(result.error || "Calculation failed")
       return
+    }
+
+    if (result.data) {
+      result.data.currency = result.data.currency || formData.currency || "USD"
     }
 
     const savedCalculation = await saveCalculationToHistory(result.data, token)

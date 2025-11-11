@@ -30,6 +30,7 @@ interface CartItem {
   tariffType: string
   source?: string  // "global" or "simulator"
   calculationDate: string
+  currency?: string
   breakdown?: Array<{
     description: string
     type: string
@@ -165,6 +166,15 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
       setSelectedHistoryItems(new Set())
     } else {
       setSelectedHistoryItems(new Set(historyItems.map(item => item.id)))
+    }
+  }
+
+  const formatCurrency = (value: number, currencyCode?: string) => {
+    const code = currencyCode || "USD"
+    try {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: code }).format(value)
+    } catch {
+      return `${code} ${value.toFixed(2)}`
     }
   }
 
@@ -444,7 +454,7 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
                               {item.quantity} {item.unit}
                             </td>
                             <td className="py-3 px-4 text-right font-medium text-foreground">
-                              ${item.totalCost.toFixed(2)}
+                              {formatCurrency(item.totalCost, item.currency)}
                             </td>
                           </tr>
                         ))}
@@ -553,7 +563,9 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
                             </div>
                             <div className="flex items-center justify-between mt-2">
                               <span className="text-xs text-muted-foreground">{item.quantity} {item.unit}</span>
-                              <span className="text-sm font-medium text-foreground">${item.totalCost.toFixed(2)}</span>
+                              <span className="text-sm font-medium text-foreground">
+                                {formatCurrency(item.totalCost, item.currency)}
+                              </span>
                             </div>
                           </div>
                           <Checkbox

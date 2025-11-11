@@ -115,6 +115,18 @@ public class TariffRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
     }
 
+    @GetMapping("/tariff-trends")
+    public ResponseEntity<?> getTariffTrends(HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, null);
+        String targetUrl = routingService.buildTargetUrl(
+                routingService.getTariffCalculatorUrl(),
+                "/api/tariff-trends",
+                queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
+    }
+
     @GetMapping("/tariffs/currencies")
     public ResponseEntity<?> getSupportedCurrencies(HttpServletRequest request) {
         String queryString = request.getQueryString();

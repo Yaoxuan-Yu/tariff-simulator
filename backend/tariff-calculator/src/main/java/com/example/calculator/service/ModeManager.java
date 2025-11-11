@@ -25,8 +25,8 @@ public class ModeManager {
 
     public void useSimulatorMode() { this.currentMode = simulatorMode; }
 
-    public TariffResponse calculate(String importCountry, String exportCountry, String product, double quantity, String customCost) {
-        return currentMode.calculate(importCountry, exportCountry, product, quantity, customCost);
+    public TariffResponse calculate(String importCountry, String exportCountry, String product, double quantity, String customCost, String currency) {
+        return currentMode.calculate(importCountry, exportCountry, product, quantity, customCost, currency);
     }
 }
 

@@ -42,6 +42,7 @@ public class TariffService {
             String importingTo,
             double quantity,
             String customCost,
+            String currency,
             String mode,
             String userTariffId,
             HttpSession session) {
@@ -70,10 +71,16 @@ public class TariffService {
                         ? Double.parseDouble(customCost)
                         : (dbCost != null ? dbCost : 0.0);
 
-                double productCost = unitCost * quantity;
+                double productCostUSD = unitCost * quantity;
                 double tariffRate = selected.getRate();
-                double tariffAmount = (productCost * tariffRate) / 100;
-                double totalCost = productCost + tariffAmount;
+                double tariffAmountUSD = (productCostUSD * tariffRate) / 100;
+                double totalCostUSD = productCostUSD + tariffAmountUSD;
+
+                String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : "USD";
+
+                double productCost = currencyService.convertFromUSD(productCostUSD, targetCurrency);
+                double tariffAmount = currencyService.convertFromUSD(tariffAmountUSD, targetCurrency);
+                double totalCost = currencyService.convertFromUSD(totalCostUSD, targetCurrency);
 
                 List<TariffResponse.BreakdownItem> breakdown = new ArrayList<>();
                 breakdown.add(new TariffResponse.BreakdownItem("Product Cost", "Base Cost", "100%", productCost));
@@ -93,7 +100,8 @@ public class TariffService {
                         totalCost,
                         tariffRate,
                         selected.getType() + " (user-defined)",
-                        breakdown
+                        breakdown,
+                        targetCurrency
                 );
 
                 return new TariffResponse(true, data);
@@ -103,7 +111,7 @@ public class TariffService {
         }
 
         // default: global mode
-        return calculate(productName, exportingFrom, importingTo, quantity, customCost);
+        return calculate(productName, exportingFrom, importingTo, quantity, customCost, currency);
     }
 
     private TariffDefinitionsResponse.TariffDefinitionDto findMatchingUserTariff(
@@ -136,7 +144,7 @@ public class TariffService {
     }
 
     public TariffResponse calculate(String productName, String exportingFrom,
-                                    String importingTo, double quantity, String customCost) {
+                                    String importingTo, double quantity, String customCost, String currency) {
         try {
             if (productName == null || productName.trim().isEmpty()) {
                 throw new com.example.calculator.exception.ValidationException("Product name is required");
@@ -169,13 +177,19 @@ public class TariffService {
             double unitCost = (customCost != null && !customCost.isEmpty())
                     ? Double.parseDouble(customCost)
                     : (dbCost != null ? dbCost : 0.0);
-            double productCost = unitCost * quantity;
+            double productCostUSD = unitCost * quantity;
 
             boolean hasFTAStatus = hasFTA(importingTo, exportingFrom);
             double tariffRate = hasFTAStatus ? tariff.getAhsWeighted() : tariff.getMfnWeighted();
 
-            double tariffAmount = (productCost * tariffRate) / 100;
-            double totalCost = productCost + tariffAmount;
+            double tariffAmountUSD = (productCostUSD * tariffRate) / 100;
+            double totalCostUSD = productCostUSD + tariffAmountUSD;
+
+            String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : "USD";
+
+            double productCost = currencyService.convertFromUSD(productCostUSD, targetCurrency);
+            double tariffAmount = currencyService.convertFromUSD(tariffAmountUSD, targetCurrency);
+            double totalCost = currencyService.convertFromUSD(totalCostUSD, targetCurrency);
 
             List<TariffResponse.BreakdownItem> breakdown = new ArrayList<>();
             breakdown.add(new TariffResponse.BreakdownItem("Product Cost", "Base Cost", "100%", productCost));
@@ -195,7 +209,8 @@ public class TariffService {
                     totalCost,
                     tariffRate,
                     hasFTAStatus ? "AHS (with FTA)" : "MFN (no FTA)",
-                    breakdown
+                    breakdown,
+                    targetCurrency
             );
 
             return new TariffResponse(true, data);

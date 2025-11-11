@@ -119,6 +119,7 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
         calculationDate: formData.calculationDate,
         breakdown: breakdown,
         mode: "simulator",
+        currency: "USD",
       }
 
       // Save to history and get the backend-generated ID
@@ -142,7 +143,8 @@ export function SimulatorCalculator({ onCartCountChange }: SimulatorCalculatorPr
               tariffRate: result.tariffRate,
               tariffType: result.tariffType,
               breakdown: result.breakdown,
-              source: "simulator"  // Mark this calculation as from simulator
+              source: "simulator",  // Mark this calculation as from simulator
+              currency: result.currency,
             }
           }
         }

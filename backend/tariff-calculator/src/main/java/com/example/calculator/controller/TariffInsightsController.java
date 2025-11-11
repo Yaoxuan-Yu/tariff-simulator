@@ -3,6 +3,7 @@ package com.example.calculator.controller;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -57,9 +58,6 @@ public class TariffInsightsController {
         if (request.getProduct() == null || request.getProduct().trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Product is required");
         }
-        if (request.getBrand() == null || request.getBrand().trim().isEmpty()) {
-            throw new com.example.calculator.exception.BadRequestException("Brand is required");
-        }
         if (request.getExportingFrom() == null || request.getExportingFrom().trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Exporting country is required");
         }
@@ -72,7 +70,6 @@ public class TariffInsightsController {
 
         TariffComparisonDTO response = comparisonService.compareMultipleCountries(
                 request.getProduct(),
-                request.getBrand(),
                 request.getExportingFrom(),
                 request.getImportingToCountries(),
                 request.getQuantity(),
@@ -87,7 +84,6 @@ public class TariffInsightsController {
     @GetMapping("/tariffs/history")
     public ResponseEntity<TariffHistoryDTO> getTariffHistory(
             @RequestParam String product,
-            @RequestParam String brand,
             @RequestParam String exportingFrom,
             @RequestParam String importingTo,
             @RequestParam(required = false) String startDate,
@@ -95,9 +91,6 @@ public class TariffInsightsController {
 
         if (product == null || product.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Product is required");
-        }
-        if (brand == null || brand.trim().isEmpty()) {
-            throw new com.example.calculator.exception.BadRequestException("Brand is required");
         }
         if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Exporting country is required");
@@ -108,7 +101,6 @@ public class TariffInsightsController {
 
         TariffHistoryDTO response = comparisonService.getTariffHistory(
                 product,
-                brand,
                 exportingFrom,
                 importingTo,
                 startDate,
@@ -116,6 +108,42 @@ public class TariffInsightsController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/tariff-trends")
+    public ResponseEntity<Map<String, Object>> getTariffTrends(
+            @RequestParam String importCountries,
+            @RequestParam String exportCountries,
+            @RequestParam String products,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+
+        List<String> importList = parseCsv(importCountries);
+        List<String> exportList = parseCsv(exportCountries);
+        List<String> productList = parseCsv(products);
+
+        if (importList.isEmpty() || exportList.isEmpty() || productList.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "error", "Import countries, export countries, and products are required"));
+        }
+
+        try {
+            List<Map<String, Object>> data = comparisonService.getTariffTrends(
+                    importList, exportList, productList, startDate, endDate);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", data));
+        } catch (com.example.calculator.exception.ValidationException | com.example.calculator.exception.NotFoundException e) {
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "error", "Failed to fetch tariff trends: " + e.getMessage()));
+        }
     }
 
     @Operation(summary = "Get list of supported currencies with rates")
@@ -204,6 +232,16 @@ public class TariffInsightsController {
 
         return ResponseEntity.ok(tariff);
 
+    }
+
+    private List<String> parseCsv(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return List.of();
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 }
 

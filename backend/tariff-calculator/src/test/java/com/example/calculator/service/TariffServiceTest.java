@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.when;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.calculator.dto.TariffResponse;
@@ -35,6 +36,9 @@ public class TariffServiceTest {
     @Mock
     private SessionTariffService sessionTariffService;
 
+    @Mock
+    private CurrencyService currencyService;
+
     @InjectMocks
     private TariffService tariffService;
 
@@ -44,6 +48,9 @@ public class TariffServiceTest {
 
     @BeforeEach
     public void setUp() {
+        Mockito.when(currencyService.convertFromUSD(Mockito.anyDouble(), Mockito.anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0, Double.class));
+
         testProduct = new Product();
         testProduct.setName("Test Product");
         testProduct.setCost(10.0);
@@ -71,7 +78,7 @@ public class TariffServiceTest {
                 .thenReturn(Optional.of(testTariffWithFTA));
 
         TariffResponse response = tariffService.calculate(
-                "Test Product", "Singapore", "China", 3, null);
+                "Test Product", "Singapore", "China", 3, null, "USD");
 
         assertTrue(response.isSuccess());
         assertNotNull(response.getData());
@@ -79,6 +86,7 @@ public class TariffServiceTest {
         assertEquals(30.0, response.getData().getProductCost());
         assertEquals(2.0, response.getData().getTariffRate());
         assertEquals(30.6, response.getData().getTotalCost());
+        assertEquals("USD", response.getData().getCurrency());
     }
 
     @Test
@@ -88,12 +96,13 @@ public class TariffServiceTest {
                 .thenReturn(Optional.of(testTariffWithoutFTA));
 
         TariffResponse response = tariffService.calculate(
-                "Test Product", "USA", "China", 2, null);
+                "Test Product", "USA", "China", 2, null, "USD");
 
         assertTrue(response.isSuccess());
         assertEquals(20.0, response.getData().getProductCost());
         assertEquals(15.0, response.getData().getTariffRate());
         assertEquals(23.0, response.getData().getTotalCost());
+        assertEquals("USD", response.getData().getCurrency());
     }
 
     // === Error handling ===
@@ -103,7 +112,7 @@ public class TariffServiceTest {
         when(productRepository.findByName("Non-existent Product")).thenReturn(List.of());
 
         NotFoundException thrown = assertThrows(NotFoundException.class, () ->
-                tariffService.calculate("Non-existent Product", "Singapore", "China", 3, null)
+                tariffService.calculate("Non-existent Product", "Singapore", "China", 3, null, "USD")
         );
         assertTrue(thrown.getMessage().contains("Product not found"));
     }
@@ -115,7 +124,7 @@ public class TariffServiceTest {
                 .thenReturn(Optional.empty());
 
         NotFoundException thrown = assertThrows(NotFoundException.class, () ->
-                tariffService.calculate("Test Product", "Earth", "Mars", 3, null)
+                tariffService.calculate("Test Product", "Earth", "Mars", 3, null, "USD")
         );
         assertTrue(thrown.getMessage().contains("Tariff data not available"));
     }
@@ -127,7 +136,7 @@ public class TariffServiceTest {
                 .thenReturn(Optional.of(testTariffWithFTA));
 
         ValidationException thrown = assertThrows(ValidationException.class, () ->
-                tariffService.calculate("Test Product", "Singapore", "China", 0, null)
+                tariffService.calculate("Test Product", "Singapore", "China", 0, null, "USD")
         );
         assertTrue(thrown.getMessage().contains("Quantity must be greater than 0"));
     }
@@ -135,17 +144,17 @@ public class TariffServiceTest {
     @Test
     void calculate_NullInputs_ShouldThrowValidationException() {
         ValidationException p1 = assertThrows(ValidationException.class, () ->
-                tariffService.calculate(null, "Singapore", "China", 1, null)
+                tariffService.calculate(null, "Singapore", "China", 1, null, "USD")
         );
         assertTrue(p1.getMessage().contains("Product name is required"));
 
         ValidationException p2 = assertThrows(ValidationException.class, () ->
-                tariffService.calculate("Test Product", null, "China", 1, null)
+                tariffService.calculate("Test Product", null, "China", 1, null, "USD")
         );
         assertTrue(p2.getMessage().contains("Exporting country is required"));
 
         ValidationException p3 = assertThrows(ValidationException.class, () ->
-                tariffService.calculate("Test Product", "Singapore", null, 1, null)
+                tariffService.calculate("Test Product", "Singapore", null, 1, null, "USD")
         );
         assertTrue(p3.getMessage().contains("Importing country is required"));
     }
@@ -153,7 +162,7 @@ public class TariffServiceTest {
     @Test
     void calculate_QuantityNegative_ShouldThrow() {
         ValidationException thrown = assertThrows(ValidationException.class, () ->
-                tariffService.calculate("Test Product", "Singapore", "China", -5, null)
+                tariffService.calculate("Test Product", "Singapore", "China", -5, null, "USD")
         );
         assertTrue(thrown.getMessage().contains("Quantity must be greater than 0"));
     }
@@ -165,7 +174,7 @@ public class TariffServiceTest {
                 .thenReturn(Optional.of(testTariffWithFTA));
 
         ValidationException thrown = assertThrows(ValidationException.class, () ->
-                tariffService.calculate("Test Product", "Singapore", "China", 2, "abc")
+                tariffService.calculate("Test Product", "Singapore", "China", 2, "abc", "USD")
         );
         assertTrue(thrown.getMessage().contains("Invalid custom cost format"));
     }
@@ -178,7 +187,7 @@ public class TariffServiceTest {
 
         double largeQuantity = 1_000_000;
         TariffResponse response = tariffService.calculate(
-                "Test Product", "Singapore", "China", largeQuantity, null);
+                "Test Product", "Singapore", "China", largeQuantity, null, "USD");
 
         assertTrue(response.isSuccess());
         assertEquals(10_000_000.0, response.getData().getProductCost());
