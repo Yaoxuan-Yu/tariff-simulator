@@ -1,0 +1,8 @@
+{
+  "currency": [
+    { "code": "USD", "rate": 1.00, "lastUpdated": "2025-11-11" },
+    { "code": "SGD", "rate": 1.35, "lastUpdated": "2025-11-10" },
+    { "code": "EUR", "rate": 0.93, "lastUpdated": "2025-11-09" },
+    { "code": "CNY", "rate": 7.12, "lastUpdated": "2025-11-08" }
+  ]
+}

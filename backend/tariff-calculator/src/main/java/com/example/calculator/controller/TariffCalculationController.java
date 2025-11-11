@@ -1,19 +1,23 @@
 package com.example.calculator.controller;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
 
-import com.example.calculator.dto.TariffResponse;
-import com.example.calculator.service.TariffService;
-import com.example.calculator.service.ModeManager;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.calculator.client.SessionManagementClient;
+import com.example.calculator.dto.TariffResponse;
+import com.example.calculator.service.ModeManager;
+import com.example.calculator.service.TariffService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import java.util.HashMap;
-import java.util.Map;
+import jakarta.servlet.http.HttpSession;
 
 @RestController
 @Tag(name = "Tariff Calculation", description = "API endpoints for tariff calculations")
@@ -37,7 +41,7 @@ public class TariffCalculationController {
     @GetMapping("/tariff")
     public ResponseEntity<TariffResponse> calculateTariff(
             @RequestParam String product,
-            @RequestParam String brand,
+            @RequestParam(required = false) String brand,
             @RequestParam String exportingFrom,
             @RequestParam String importingTo,
             @RequestParam double quantity,
@@ -50,9 +54,9 @@ public class TariffCalculationController {
         if (product == null || product.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Product is required");
         }
-        if (brand == null || brand.trim().isEmpty()) {
-            throw new com.example.calculator.exception.BadRequestException("Brand is required");
-        }
+        // if (brand == null || brand.trim().isEmpty()) {
+        //     throw new com.example.calculator.exception.BadRequestException("Brand is required");
+        // }
         if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Exporting country is required");
         }
@@ -78,7 +82,6 @@ public class TariffCalculationController {
             // For simulator mode, call TariffService directly with session to use session-based tariffs
             response = tariffService.calculateWithMode(
                 product,
-                brand,
                 exportingFrom,
                 importingTo,
                 quantity,
@@ -94,7 +97,6 @@ public class TariffCalculationController {
                 importingTo,
                 exportingFrom,
                 product,
-                brand,
                 quantity,
                 customCost
             );
@@ -110,7 +112,7 @@ public class TariffCalculationController {
                 Map<String, Object> dataMap = new HashMap<>();
                 TariffResponse.TariffCalculationData data = response.getData();
                 dataMap.put("product", data.getProduct());
-                dataMap.put("brand", data.getBrand());
+                dataMap.put("brand", data.getBrand() != null ? data.getBrand() : "N/A");
                 dataMap.put("exportingFrom", data.getExportingFrom());
                 dataMap.put("importingTo", data.getImportingTo());
                 dataMap.put("quantity", data.getQuantity());
