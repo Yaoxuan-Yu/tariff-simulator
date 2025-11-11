@@ -1,41 +1,51 @@
 package com.example.tariff.service;
-import com.example.tariff.dto.TariffResponse;
-import com.example.tariff.dto.BrandInfo;
-import com.example.tariff.dto.TariffDefinitionsResponse;
-import com.example.tariff.entity.Product;
-import com.example.tariff.entity.Tariff;
-import com.example.tariff.repository.ProductRepository;
-import com.example.tariff.repository.TariffRepository;
-import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// has main business logic including tariff calculations, data retrieval and fta logic (ahs vs mhn)
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.example.tariff.dto.BrandInfo;
+import com.example.tariff.dto.TariffDTO;
+import com.example.tariff.dto.TariffDefinitionsResponse;
+import com.example.tariff.dto.TariffResponse;
+import com.example.tariff.entity.Product;
+import com.example.tariff.entity.Tariff;
+import com.example.tariff.repository.ProductRepository;
+import com.example.tariff.repository.TariffRepository;
+
+// has main business logic including tariff calculations, data retrieval and fta logic (ahs vs mfn)
 @Service
 public class TariffService {
+
     private final TariffRepository tariffRepository;
     private final ProductRepository productRepository;
     private final List<TariffDefinitionsResponse.TariffDefinitionDto> userDefinedTariffs = new ArrayList<>();
+
+    @Autowired
+    private CurrencyService currencyService;
+
     public TariffService(TariffRepository tariffRepository, ProductRepository productRepository) {
         this.tariffRepository = tariffRepository;
         this.productRepository = productRepository;
     }
 
     public TariffResponse calculateWithMode(
-        String productName,
-        String brand,
-        String exportingFrom,
-        String importingTo,
-        double quantity,
-        String customCost,
-        String mode,
-        String userTariffId
+            String productName,
+            String brand,
+            String exportingFrom,
+            String importingTo,
+            double quantity,
+            String customCost,
+            String mode,
+            String userTariffId
     ) {
         if (mode != null && mode.equalsIgnoreCase("user")) {
             TariffDefinitionsResponse.TariffDefinitionDto selected = findMatchingUserTariff(
-                userTariffId, productName, exportingFrom, importingTo
+                    userTariffId, productName, exportingFrom, importingTo
             );
             if (selected == null) {
                 return new TariffResponse(false, "Selected user-defined tariff not found or not applicable");
@@ -48,8 +58,8 @@ public class TariffService {
                 }
 
                 Product selectedProduct = products.get(0);
-                double unitCost = customCost != null && !customCost.isEmpty() ?
-                    Double.parseDouble(customCost) : selectedProduct.getCost();
+                double unitCost = customCost != null && !customCost.isEmpty()
+                        ? Double.parseDouble(customCost) : selectedProduct.getCost();
                 double productCost = unitCost * quantity;
 
                 double tariffRate = selected.getRate();
@@ -58,25 +68,25 @@ public class TariffService {
 
                 List<TariffResponse.BreakdownItem> breakdown = new ArrayList<>();
                 breakdown.add(new TariffResponse.BreakdownItem(
-                    "Product Cost", "Base Cost", "100%", productCost));
+                        "Product Cost", "Base Cost", "100%", productCost));
                 breakdown.add(new TariffResponse.BreakdownItem(
-                    "Import Tariff (" + selected.getType() + ")",
-                    "Tariff",
-                    String.format("%.2f%%", tariffRate),
-                    tariffAmount));
+                        "Import Tariff (" + selected.getType() + ")",
+                        "Tariff",
+                        String.format("%.2f%%", tariffRate),
+                        tariffAmount));
 
                 TariffResponse.TariffCalculationData data = new TariffResponse.TariffCalculationData(
-                    selectedProduct.getName(),
-                    selectedProduct.getBrand(),
-                    exportingFrom,
-                    importingTo,
-                    quantity,
-                    selectedProduct.getUnit(),
-                    productCost,
-                    totalCost,
-                    tariffRate,
-                    selected.getType() + " (user-defined)",
-                    breakdown
+                        selectedProduct.getName(),
+                        selectedProduct.getBrand(),
+                        exportingFrom,
+                        importingTo,
+                        quantity,
+                        selectedProduct.getUnit(),
+                        productCost,
+                        totalCost,
+                        tariffRate,
+                        selected.getType() + " (user-defined)",
+                        breakdown
                 );
 
                 return new TariffResponse(true, data);
@@ -90,18 +100,18 @@ public class TariffService {
     }
 
     private TariffDefinitionsResponse.TariffDefinitionDto findMatchingUserTariff(
-        String userTariffId,
-        String product,
-        String exportingFrom,
-        String importingTo
+            String userTariffId,
+            String product,
+            String exportingFrom,
+            String importingTo
     ) {
         // If an explicit ID is provided, prefer exact match
         if (userTariffId != null && !userTariffId.isEmpty()) {
             for (TariffDefinitionsResponse.TariffDefinitionDto dto : userDefinedTariffs) {
                 if (userTariffId.equals(dto.getId())
-                    && product.equals(dto.getProduct())
-                    && exportingFrom.equals(dto.getExportingFrom())
-                    && importingTo.equals(dto.getImportingTo())) {
+                        && product.equals(dto.getProduct())
+                        && exportingFrom.equals(dto.getExportingFrom())
+                        && importingTo.equals(dto.getImportingTo())) {
                     return dto;
                 }
             }
@@ -110,15 +120,16 @@ public class TariffService {
         // Otherwise, pick the first applicable user-defined tariff for the route and product
         for (TariffDefinitionsResponse.TariffDefinitionDto dto : userDefinedTariffs) {
             if (product.equals(dto.getProduct())
-                && exportingFrom.equals(dto.getExportingFrom())
-                && importingTo.equals(dto.getImportingTo())) {
+                    && exportingFrom.equals(dto.getExportingFrom())
+                    && importingTo.equals(dto.getImportingTo())) {
                 return dto;
             }
         }
         return null;
     }
-    public TariffResponse calculate(String productName, String brand, String exportingFrom, String importingTo, 
-                                   double quantity, String customCost) {
+
+    public TariffResponse calculate(String productName, String brand, String exportingFrom, String importingTo,
+            double quantity, String customCost) {
         try {
             // Validate inputs
             if (productName == null || productName.trim().isEmpty()) {
@@ -141,20 +152,19 @@ public class TariffService {
             if (products.isEmpty()) {
                 throw new com.example.tariff.exception.NotFoundException("Product not found: " + productName + " - " + brand);
             }
-            
+
             Product selectedProduct = products.get(0);
 
             Tariff tariff = tariffRepository.findByCountryAndPartner(importingTo, exportingFrom)
                     .orElse(null);
-            
+
             if (tariff == null) {
                 throw new com.example.tariff.exception.NotFoundException("Tariff data not available for " + exportingFrom + " to " + importingTo);
             }
 
-            double unitCost = customCost != null && !customCost.isEmpty() ? 
-                Double.parseDouble(customCost) : selectedProduct.getCost();
+            double unitCost = customCost != null && !customCost.isEmpty()
+                    ? Double.parseDouble(customCost) : selectedProduct.getCost();
             double productCost = unitCost * quantity;
-            
 
             boolean hasFTAStatus = hasFTA(importingTo, exportingFrom);
             double tariffRate = hasFTAStatus ? tariff.getAhsWeighted() : tariff.getMfnWeighted();
@@ -164,27 +174,27 @@ public class TariffService {
 
             List<TariffResponse.BreakdownItem> breakdown = new ArrayList<>();
             breakdown.add(new TariffResponse.BreakdownItem(
-                "Product Cost", "Base Cost", "100%", productCost));
+                    "Product Cost", "Base Cost", "100%", productCost));
             breakdown.add(new TariffResponse.BreakdownItem(
-                "Import Tariff (" + (hasFTAStatus ? "AHS" : "MFN") + ")", 
-                "Tariff", 
-                String.format("%.2f%%", tariffRate), 
-                tariffAmount));
+                    "Import Tariff (" + (hasFTAStatus ? "AHS" : "MFN") + ")",
+                    "Tariff",
+                    String.format("%.2f%%", tariffRate),
+                    tariffAmount));
             // Create TariffCalculationData
             TariffResponse.TariffCalculationData data = new TariffResponse.TariffCalculationData(
-                selectedProduct.getName(),
-                selectedProduct.getBrand(),
-                exportingFrom,
-                importingTo,
-                quantity,
-                selectedProduct.getUnit(),
-                productCost,
-                totalCost,
-                tariffRate,
-                hasFTAStatus ? "AHS (with FTA)" : "MFN (no FTA)",
-                breakdown
+                    selectedProduct.getName(),
+                    selectedProduct.getBrand(),
+                    exportingFrom,
+                    importingTo,
+                    quantity,
+                    selectedProduct.getUnit(),
+                    productCost,
+                    totalCost,
+                    tariffRate,
+                    hasFTAStatus ? "AHS (with FTA)" : "MFN (no FTA)",
+                    breakdown
             );
-            
+
             return new TariffResponse(true, data);
         } catch (com.example.tariff.exception.ValidationException | com.example.tariff.exception.NotFoundException e) {
             throw e; // Re-throw validation and not found exceptions
@@ -197,32 +207,36 @@ public class TariffService {
 
     private boolean hasFTA(String importCountry, String exportCountry) {
         List<String> ftaCountries = Arrays.asList(
-            "Australia", "China", "Indonesia", "India", "Japan", 
-            "Malaysia", "Philippines", "Singapore", "Vietnam"
+                "Australia", "China", "Indonesia", "India", "Japan",
+                "Malaysia", "Philippines", "Singapore", "Vietnam"
         );
-        
+
         return ftaCountries.contains(importCountry) && ftaCountries.contains(exportCountry);
     }
+
     public List<String> getAllCountries() {
         return tariffRepository.findDistinctCountries();
     }
+
     public List<String> getAllPartners() {
         return tariffRepository.findDistinctPartners();
     }
+
     public List<String> getAllProducts() {
         return productRepository.findDistinctProducts();
     }
+
     public List<BrandInfo> getBrandsByProduct(String product) {
         if (product == null || product.trim().isEmpty()) {
             throw new com.example.tariff.exception.ValidationException("Product name cannot be null or empty");
         }
-        
+
         try {
             List<Product> products = productRepository.findByName(product);
             if (products.isEmpty()) {
                 throw new com.example.tariff.exception.NotFoundException("No products found for: " + product);
             }
-            
+
             return products.stream()
                     .map(p -> new BrandInfo(p.getBrand(), p.getCost(), p.getUnit()))
                     .collect(Collectors.toList());
@@ -240,10 +254,9 @@ public class TariffService {
             // Use distinct product names to avoid duplicating rows per brand in definitions
             List<String> products = productRepository.findDistinctProducts();
             List<Tariff> tariffs = tariffRepository.findAll();
-            
+
             List<TariffDefinitionsResponse.TariffDefinitionDto> definitions = new ArrayList<>();
             int id = 1;
-            
 
             for (String productName : products) {
                 for (Tariff tariff : tariffs) {
@@ -251,22 +264,22 @@ public class TariffService {
                     boolean hasFTA = hasFTA(tariff.getCountry(), tariff.getPartner());
                     String type = hasFTA ? "AHS" : "MFN";
                     double rate = hasFTA ? tariff.getAhsWeighted() : tariff.getMfnWeighted();
-                    
+
                     if (hasFTA || tariff.getAhsWeighted().equals(tariff.getMfnWeighted())) {
                         definitions.add(new TariffDefinitionsResponse.TariffDefinitionDto(
-                            String.valueOf(id++),
-                            productName,
-                            tariff.getPartner(),
-                            tariff.getCountry(),
-                            type,
-                            rate,
-                            "1/1/2022", // Default effective date
-                            "Ongoing"   // Default expiration date
+                                String.valueOf(id++),
+                                productName,
+                                tariff.getPartner(),
+                                tariff.getCountry(),
+                                type,
+                                rate,
+                                "1/1/2022", // Default effective date
+                                "Ongoing" // Default expiration date
                         ));
                     }
                 }
             }
-            
+
             return new TariffDefinitionsResponse(true, definitions);
         } catch (Exception e) {
             return new TariffDefinitionsResponse(false, "Failed to retrieve tariff definitions: " + e.getMessage());
@@ -301,7 +314,7 @@ public class TariffService {
             if (dto.getRate() < 0) {
                 throw new com.example.tariff.exception.ValidationException("Tariff rate cannot be negative");
             }
-            
+
             if (dto.getId() == null || dto.getId().trim().isEmpty()) {
                 dto.setId("user-" + System.currentTimeMillis());
             }
@@ -313,5 +326,85 @@ public class TariffService {
             throw new com.example.tariff.exception.DataAccessException("Failed to add user-defined tariff", e);
         }
     }
-}
 
+    // Currency conversion methods
+    public List<TariffDTO> getAllTariffs(Double productCostUSD, String currency) {
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
+        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        List<Tariff> tariffs = tariffRepository.findAll();
+
+        return tariffs.stream()
+                .map(tariff -> convertTariffToDTO(tariff, costUSD, targetCurrency))
+                .collect(Collectors.toList());
+    }
+
+    public List<TariffDTO> getTariffsByCountry(String country, Double productCostUSD, String currency) {
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
+        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        List<Tariff> tariffs = tariffRepository.findByCountry(country);
+
+        return tariffs.stream()
+                .map(tariff -> convertTariffToDTO(tariff, costUSD, targetCurrency))
+                .collect(Collectors.toList());
+    }
+
+    public TariffDTO getTariffByCountryAndPartner(String country, String partner,
+            Double productCostUSD, String currency) {
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
+        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        Tariff tariff = tariffRepository.findByCountryAndPartner(country, partner)
+                .orElse(null);
+
+        if (tariff == null) {
+            return null;
+        }
+
+        return convertTariffToDTO(tariff, costUSD, targetCurrency);
+    }
+
+    private TariffDTO convertTariffToDTO(Tariff tariff, double productCostUSD, String targetCurrency) {
+        // Calculate tariff amounts in selected currency
+        Double ahsTariffAmount = null;
+        Double mfnTariffAmount = null;
+
+        if (productCostUSD > 0) {
+            if (tariff.getAhsWeighted() != null) {
+                ahsTariffAmount = calculateTariffAmount(
+                        productCostUSD,
+                        tariff.getAhsWeighted(),
+                        targetCurrency
+                );
+            }
+
+            if (tariff.getMfnWeighted() != null) {
+                mfnTariffAmount = calculateTariffAmount(
+                        productCostUSD,
+                        tariff.getMfnWeighted(),
+                        targetCurrency
+                );
+            }
+        }
+
+        return new TariffDTO(
+                tariff.getCountry(),
+                tariff.getPartner(),
+                tariff.getAhsWeighted(),
+                tariff.getMfnWeighted(),
+                ahsTariffAmount,
+                mfnTariffAmount,
+                targetCurrency
+        );
+    }
+
+    private double calculateTariffAmount(double productCostUSD, double tariffRatePercent, String targetCurrency) {
+        if (productCostUSD == 0.0 || tariffRatePercent == 0.0) {
+            return 0.0;
+        }
+
+        // Calculate tariff amount in USD (product cost × tariff rate %)
+        double tariffAmountUSD = productCostUSD * (tariffRatePercent / 100.0);
+
+        // Convert to target currency using real-time rates
+        return currencyService.convertFromUSD(tariffAmountUSD, targetCurrency);
+    }
+}
