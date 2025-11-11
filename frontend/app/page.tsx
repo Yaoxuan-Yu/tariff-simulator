@@ -10,13 +10,22 @@ import { TariffDefinitionsTable } from "@/components/tariff-definitions-table"
 import { ExportPage } from "@/components/export-page"
 import { SessionHistoryPage } from "@/components/session-history"
 import { TariffTrendsVisualization } from "@/components/tariff-trends-visualization"
+import { TariffCompare } from "@/components/tariff-compare"
+import { TradeInsights } from "@/components/trade-insights"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LogOut, User, History, Shield } from "lucide-react"
 
 type AuthView = "login" | "signup"
-type DashboardView = "dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "history"
+type DashboardView =
+  | "dashboard"
+  | "global-tariffs"
+  | "simulator-tariffs"
+  | "cart"
+  | "history"
+  | "tariff-compare"
+  | "trade-insights"
 type CalculatorMode = "global" | "simulator"
 
 const API_BASE_URL = "http://localhost:8080/api"
@@ -49,14 +58,16 @@ export default function Home() {
   }
 
   const getAuthToken = async (): Promise<string> => {
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
     return session?.access_token || ""
   }
 
   const createAuthHeaders = (token: string): Record<string, string> => {
     return {
-      'Authorization': token ? `Bearer ${token}` : '',
-      'Content-Type': 'application/json'
+      Authorization: token ? `Bearer ${token}` : "",
+      "Content-Type": "application/json",
     }
   }
 
@@ -65,8 +76,8 @@ export default function Home() {
       return 0
     }
 
-    const contentType = response.headers.get('content-type')
-    if (!contentType || !contentType.includes('application/json')) {
+    const contentType = response.headers.get("content-type")
+    if (!contentType || !contentType.includes("application/json")) {
       return 0
     }
 
@@ -83,11 +94,11 @@ export default function Home() {
     try {
       const token = await getAuthToken()
       const response = await fetch(`${API_BASE_URL}/export-cart`, {
-        method: 'GET',
+        method: "GET",
         headers: createAuthHeaders(token),
-        credentials: 'include'
+        credentials: "include",
       })
-      
+
       const count = await parseCartResponse(response)
       setCartCount(count)
     } catch (err) {
@@ -97,20 +108,16 @@ export default function Home() {
   }
 
   const fetchUserProfile = async (userId: string) => {
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('user_id', userId)
-      .single()
-    
-    return profile?.role || 'user'
+    const { data: profile } = await supabase.from("user_profiles").select("role").eq("user_id", userId).single()
+
+    return profile?.role || "user"
   }
 
   const createUserObject = (sessionUser: any, role: string) => {
     return {
       ...sessionUser,
       role,
-      name: sessionUser.email?.split('@')[0] || 'User'
+      name: sessionUser.email?.split("@")[0] || "User",
     }
   }
 
@@ -154,7 +161,7 @@ export default function Home() {
     return {
       data: results,
       calculationId: results.calculationId || generateCalculationId(),
-      calculationDate: results.calculationDate || new Date().toISOString()
+      calculationDate: results.calculationDate || new Date().toISOString(),
     }
   }
 
@@ -162,11 +169,11 @@ export default function Home() {
     try {
       const token = await getAuthToken()
       const historyResponse = await fetch(`${API_BASE_URL}/tariff/history`, {
-        method: 'GET',
+        method: "GET",
         headers: createAuthHeaders(token),
-        credentials: 'include'
+        credentials: "include",
       })
-      
+
       if (historyResponse.ok) {
         const historyData = await historyResponse.json()
         setSessionHistory(Array.isArray(historyData) ? historyData : [])
@@ -177,11 +184,11 @@ export default function Home() {
   }
 
   const handleCalculationComplete = async (results: any) => {
-    console.log('Raw calculation results:', results)
-    
+    console.log("Raw calculation results:", results)
+
     const calculationWithId = wrapCalculationWithMetadata(results)
-    console.log('Processed calculation:', calculationWithId)
-    
+    console.log("Processed calculation:", calculationWithId)
+
     setCalculationResults(calculationWithId)
     await fetchCalculationHistory()
   }
@@ -228,7 +235,7 @@ export default function Home() {
   }
 
   const getUserDisplayName = (): string => {
-    return user?.name || 'User'
+    return user?.name || "User"
   }
 
   const getUserRoleLabel = (): string => {
@@ -236,9 +243,7 @@ export default function Home() {
   }
 
   const renderUserRoleIcon = () => {
-    return user?.role === "admin" 
-      ? <Shield className="h-4 w-4 text-accent" /> 
-      : <User className="h-4 w-4" />
+    return user?.role === "admin" ? <Shield className="h-4 w-4 text-accent" /> : <User className="h-4 w-4" />
   }
 
   const getCalculationProductName = (): string => {
@@ -269,10 +274,7 @@ export default function Home() {
             <div className="flex items-center space-x-8">
               <h1 className="text-2xl font-bold text-slate-900">TariffWise</h1>
               <nav className="flex space-x-4">
-                <button
-                  onClick={() => setCurrentView("dashboard")}
-                  className={getNavButtonClasses("dashboard")}
-                >
+                <button onClick={() => setCurrentView("dashboard")} className={getNavButtonClasses("dashboard")}>
                   Dashboard
                 </button>
                 <button
@@ -288,9 +290,18 @@ export default function Home() {
                   Simulator Tariffs
                 </button>
                 <button
-                  onClick={navigateToCart}
-                  className={getNavButtonClasses("cart")}
+                  onClick={() => setCurrentView("tariff-compare")}
+                  className={getNavButtonClasses("tariff-compare")}
                 >
+                  Tariff Compare
+                </button>
+                <button
+                  onClick={() => setCurrentView("trade-insights")}
+                  className={getNavButtonClasses("trade-insights")}
+                >
+                  Trade Insights
+                </button>
+                <button onClick={navigateToCart} className={getNavButtonClasses("cart")}>
                   Export Cart ({cartCount})
                 </button>
               </nav>
@@ -309,9 +320,7 @@ export default function Home() {
               <div className="flex items-center space-x-2 text-sm text-slate-600">
                 {renderUserRoleIcon()}
                 <span>{getUserDisplayName()}</span>
-                <span className="text-xs bg-slate-100 px-2 py-1 rounded-full">
-                  {getUserRoleLabel()}
-                </span>
+                <span className="text-xs bg-slate-100 px-2 py-1 rounded-full">{getUserRoleLabel()}</span>
               </div>
               <Button
                 onClick={handleLogout}
@@ -338,10 +347,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <label className="text-sm font-medium text-slate-700">Calculator Mode:</label>
-                  <Select
-                    value={calculatorMode}
-                    onValueChange={(value) => setCalculatorMode(value as CalculatorMode)}
-                  >
+                  <Select value={calculatorMode} onValueChange={(value) => setCalculatorMode(value as CalculatorMode)}>
                     <SelectTrigger className="w-[180px]">
                       <SelectValue />
                     </SelectTrigger>
@@ -376,7 +382,8 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="text-xl font-semibold text-slate-900">Historical Trends</CardTitle>
                   <CardDescription>
-                    Visualize tariff changes over time for {getCalculationProductName()} from {getCalculationExportingFrom()} to {getCalculationImportingTo()}.
+                    Visualize tariff changes over time for {getCalculationProductName()} from{" "}
+                    {getCalculationExportingFrom()} to {getCalculationImportingTo()}.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -440,15 +447,35 @@ export default function Home() {
                 <h2 className="text-3xl font-bold text-slate-900 mb-2">Session History</h2>
                 <p className="text-slate-600">View and manage your calculation history.</p>
               </div>
-              <Button
-                onClick={() => setCurrentView("dashboard")}
-                variant="outline"
-                size="sm"
-              >
+              <Button onClick={() => setCurrentView("dashboard")} variant="outline" size="sm">
                 Back to Dashboard
               </Button>
             </div>
             <SessionHistoryPage />
+          </>
+        )}
+
+        {currentView === "tariff-compare" && (
+          <>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">Tariff Compare</h2>
+              <p className="text-slate-600">
+                Compare tariff rates for a single product across multiple countries over time.
+              </p>
+            </div>
+            <TariffCompare />
+          </>
+        )}
+
+        {currentView === "trade-insights" && (
+          <>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-slate-900 mb-2">Trade Insights</h2>
+              <p className="text-slate-600">
+                Discover trade-related news articles and official trade agreements relevant to your research.
+              </p>
+            </div>
+            <TradeInsights />
           </>
         )}
       </main>
