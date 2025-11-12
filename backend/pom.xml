@@ -11,9 +11,23 @@
 	<groupId>com.example</groupId>
 	<artifactId>tariff-simulator</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
 	<name>tariff-simulator</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>
+	
+	<modules>
+		<module>api-gateway</module>
+		<module>tariff-calculator</module>
+		<module>session-management</module>
+		<module>global-tariffs</module>
+		<module>product-service</module>
+		<module>csv-export</module>
+		<module>simulator-tariffs</module>
+		<module>wits-api-integration</module>
+		<module>trade-insights</module>
+		<module>integration-tests</module>
+	</modules>
 	<licenses>
 		<license/>
 	</licenses>
@@ -29,6 +43,7 @@
 	<properties>
 		<java.version>21</java.version>
 		<spring-ai.version>1.0.1</spring-ai.version>
+		<sonar.organization>kirthivasshni</sonar.organization>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -164,6 +179,8 @@
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
+
+
 
 	<build>
 		<plugins>
