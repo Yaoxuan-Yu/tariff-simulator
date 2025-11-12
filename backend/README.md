@@ -69,3 +69,25 @@ SET raw_app_meta_data =
     '"admin"'
   )
 WHERE email = 'kirthivasshni@gmail.com';
+
+1. ApiGatewayToTariffCalculatorIntegrationTest
+Tests API Gateway forwarding requests to Tariff Calculator
+Verifies request parameters are passed correctly
+Tests error propagation
+
+2. TariffCalculatorToSessionManagementIntegrationTest
+Tests Tariff Calculator calling Session Management to save calculations
+Verifies session ID is passed correctly
+Tests graceful error handling when Session Management fails
+
+3. CsvExportToSessionManagementIntegrationTest
+Tests CSV Export retrieving calculations from Session Management
+Verifies service-to-service data retrieval
+
+4. ProductServiceToGlobalTariffsIntegrationTest
+Tests Product Service fetching countries/partners from Global Tariffs
+Verifies data parsing and error handling
+
+5. EndToEndTariffCalculationFlowIntegrationTest
+Tests complete flow: API Gateway → Tariff Calculator → Session Management
+Verifies the entire request chain works correctly
