@@ -47,6 +47,7 @@ public class TariffService {
     // build combined tariff definitions from database records and known products
     public TariffDefinitionsResponse getTariffDefinitions() {
         try {
+            // Use distinct product names to avoid duplicating rows in definitions
             List<String> products = productRepository.findDistinctProducts();
             List<Tariff> tariffs = tariffRepository.findAll();
 

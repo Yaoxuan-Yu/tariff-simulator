@@ -10,15 +10,26 @@ import { TariffDefinitionsTable } from "@/components/tariff-definitions-table"
 import { ExportCartWithHistory } from "@/components/export-cart-with-history"
 import { SimulatorCalculator } from "@/components/simulator-calculator"
 import { AdminDashboard } from "@/components/admin-dashboard"
+import { TradeInsightsView } from "@/components/trade-insights-view"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LogOut, User, Shield } from "lucide-react"
+import { TariffTrendsVisualization } from "@/components/tariff-trends-visualization"
+import { TariffComparisonPanel } from "@/components/tariff-comparison-panel"
+
+
+type AuthView = "login" | "signup"
+type DashboardView = "dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "trade-insights" | "admin"
+
+const API_BASE_URL = "http://localhost:8080/api"
+const EMPTY_CART_STATUS = 204
+
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
-  const [authView, setAuthView] = useState<"login" | "signup">("login") // ADD THIS LINE
+  const [authView, setAuthView] = useState<"login" | "signup">("login")
   const [calculationResults, setCalculationResults] = useState<any>(null)
-  const [currentView, setCurrentView] = useState<"dashboard" | "global-tariffs" | "simulator-tariffs" | "cart" | "admin">("dashboard")
+  const [currentView, setCurrentView] = useState<DashboardView>("dashboard")
   const [cartCount, setCartCount] = useState<number>(0)
 
   const handleLogin = (userData: any) => {
@@ -33,15 +44,15 @@ export default function Home() {
     await supabase.auth.signOut()
     setUser(null)
     setCalculationResults(null)
+    setCartCount(0)
   }
 
-  // Fetch cart count from backend
   const fetchCartCount = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
-      
-      const response = await fetch('http://localhost:8080/api/export-cart', {
+
+      const response = await fetch(`${API_BASE_URL}/export-cart`, {
         method: 'GET',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -49,12 +60,10 @@ export default function Home() {
         },
         credentials: 'include'
       })
-      
+
       if (response.status === 204 || !response.ok) {
-        // Empty cart or error
         setCartCount(0)
       } else if (response.ok) {
-        // Check if response has content before parsing
         const contentType = response.headers.get('content-type')
         if (contentType && contentType.includes('application/json')) {
           try {
@@ -65,7 +74,6 @@ export default function Home() {
             setCartCount(0)
           }
         } else {
-          // No JSON content
           setCartCount(0)
         }
       }
@@ -75,24 +83,85 @@ export default function Home() {
     }
   }
 
+  const getAuthToken = async (): Promise<string> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token || ""
+  }
+
+  const createAuthHeaders = (token: string): Record<string, string> => ({
+    "Authorization": token ? `Bearer ${token}` : "",
+    "Content-Type": "application/json"
+  })
+
+  const parseCartResponse = async (response: Response): Promise<number> => {
+    if (response.status === EMPTY_CART_STATUS || !response.ok) {
+      return 0
+    }
+
+    const contentType = response.headers.get("content-type")
+    if (!contentType || !contentType.includes("application/json")) {
+      return 0
+    }
+
+    try {
+      const cartData = await response.json()
+      return Array.isArray(cartData) ? cartData.length : 0
+    } catch (error) {
+      console.error("Error parsing cart data:", error)
+      return 0
+    }
+  }
+
+  const fetchUserProfile = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("user_id", userId)
+      .single()
+
+    return profile?.role
+  }
+
+  const resolveUserRole = async (sessionUser: any) => {
+    const metadataRole = (sessionUser.app_metadata?.role || sessionUser.user_metadata?.role)
+    if (metadataRole) {
+      return String(metadataRole).toLowerCase()
+    }
+
+    const profileRole = await fetchUserProfile(sessionUser.id)
+    return (profileRole || "user").toLowerCase()
+  }
+
+  const initializeUser = async (sessionUser: any) => {
+    const role = await resolveUserRole(sessionUser)
+    const name = sessionUser.user_metadata?.full_name || sessionUser.email?.split("@")[0] || "User"
+
+    setUser({
+      ...sessionUser,
+      role,
+      name
+    })
+
+    await fetchCartCount()
+  }
+
+
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getSession()
       if (data.session?.user) {
-        // Get role from JWT token metadata (more secure and consistent with backend)
-        const role = (data.session.user.app_metadata?.role || 
-                     data.session.user.user_metadata?.role || 
+        const role = (data.session.user.app_metadata?.role ||
+                     data.session.user.user_metadata?.role ||
                      'user').toLowerCase()
-        
+
         setUser({
           ...data.session.user,
           role: role,
-          name: data.session.user.user_metadata?.full_name || 
-                data.session.user.email?.split('@')[0] || 
+          name: data.session.user.user_metadata?.full_name ||
+                data.session.user.email?.split('@')[0] ||
                 'User'
         })
-        
-        // Fetch cart count
+
         fetchCartCount()
       }
     }
@@ -100,20 +169,18 @@ export default function Home() {
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        // Get role from JWT token metadata (more secure and consistent with backend)
-        const role = (session.user.app_metadata?.role || 
-                     session.user.user_metadata?.role || 
+        const role = (session.user.app_metadata?.role ||
+                     session.user.user_metadata?.role ||
                      'user').toLowerCase()
-        
+
         setUser({
           ...session.user,
           role: role,
-          name: session.user.user_metadata?.full_name || 
-                session.user.email?.split('@')[0] || 
+          name: session.user.user_metadata?.full_name ||
+                session.user.email?.split('@')[0] ||
                 'User'
         })
-        
-        // Fetch cart count
+
         fetchCartCount()
       } else {
         setUser(null)
@@ -127,37 +194,89 @@ export default function Home() {
   }, [])
 
   const handleCalculationComplete = async (results: any) => {
-    console.log('Raw calculation results:', results)
-    
-    // The TariffCalculatorForm already fetches the calculation ID from backend history
-    // Wrap it properly with metadata
     const calculationWithId = {
-      data: results, // This is the actual calculation data from backend
+      data: results,
       calculationId: results.calculationId || `calc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       calculationDate: results.calculationDate || new Date().toISOString()
     }
-    
-    console.log('Processed calculation:', calculationWithId)
-    
+
     setCalculationResults(calculationWithId)
   }
 
-  const handleAddToCart = async (calculation: any) => {
-    // The ResultsTable component now handles adding to cart directly via API
-    // This callback is kept for compatibility but the actual work is done in ResultsTable
-    // Refresh cart count after adding
+  const handleAddToCart = async () => {
     await fetchCartCount()
     return true
   }
 
-  const handleRemoveFromCart = async (calculationId: string) => {
-    // ExportPage handles removal via API, just refresh count here
+  const handleRemoveFromCart = async () => {
     await fetchCartCount()
   }
 
   const handleClearCart = async () => {
-    // ExportPage handles clearing via API, just refresh count here
     await fetchCartCount()
+  }
+
+  const generateCalculationId = (): string => {
+    const timestamp = Date.now()
+    const random = Math.random().toString(36).substr(2, 9)
+    return `calc_${timestamp}_${random}`
+  }
+
+  const wrapCalculationWithMetadata = (results: any) => {
+    return {
+      data: results,
+      calculationId: results?.calculationId || generateCalculationId(),
+      calculationDate: results?.calculationDate || new Date().toISOString()
+    }
+  }
+
+  const navigateToCart = async () => {
+    setCurrentView("cart")
+    await fetchCartCount()
+  }
+
+  const renderAuthView = () => {
+    if (authView === "login") {
+      return <LoginForm onLogin={handleLogin} onSwitchToSignup={() => setAuthView("signup")} />
+    }
+    return <SignupForm onSignup={handleSignup} onSwitchToLogin={() => setAuthView("login")} />
+  }
+
+  const getNavButtonClasses = (view: DashboardView): string => {
+    const baseClasses = "px-3 py-2 text-sm font-medium rounded-md"
+    const activeClasses = "bg-slate-100 text-slate-900"
+    const inactiveClasses = "text-slate-600 hover:text-slate-900"
+    return `${baseClasses} ${currentView === view ? activeClasses : inactiveClasses}`
+  }
+
+  const getUserDisplayName = (): string => {
+    return user?.name || "User"
+  }
+
+  const getUserRoleLabel = (): string => {
+    return user?.role === "admin" ? "Admin" : "User"
+  }
+
+  const renderUserRoleIcon = () => {
+    return user?.role === "admin"
+      ? <Shield className="h-4 w-4 text-accent" />
+      : <User className="h-4 w-4" />
+  }
+
+  const getCalculationProductName = (): string => {
+    return calculationResults?.data?.product || calculationResults?.product || "selected products"
+  }
+
+  const getCalculationExportingFrom = (): string => {
+    return calculationResults?.data?.exportingFrom || calculationResults?.exportingFrom || "various countries"
+  }
+
+  const getCalculationImportingTo = (): string => {
+    return calculationResults?.data?.importingTo || calculationResults?.importingTo || "destination countries"
+  }
+
+  if (!user) {
+    return renderAuthView()
   }
 
   if (!user) {
@@ -168,7 +287,6 @@ export default function Home() {
     }
   }
 
-  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white shadow-sm border-b">
@@ -208,13 +326,23 @@ export default function Home() {
                 <button
                   onClick={() => {
                     setCurrentView("cart")
-                    fetchCartCount() // Refresh cart count when navigating to cart
+                    fetchCartCount()
                   }}
                   className={`px-3 py-2 text-sm font-medium rounded-md ${
                     currentView === "cart" ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   Export Cart ({cartCount})
+                </button>
+                <button
+                  onClick={() => setCurrentView("trade-insights")}
+                  className={`px-3 py-2 text-sm font-medium rounded-md ${
+                    currentView === "trade-insights"
+                      ? "bg-slate-100 text-slate-900"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Trade Insights
                 </button>
                 {user.role === "admin" && (
                   <button
@@ -256,8 +384,14 @@ export default function Home() {
         {currentView === "dashboard" && (
           <>
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Tariff Calculator</h2>
-              <p className="text-slate-600">Calculate import costs using official global tariffs.</p>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-3xl font-bold text-slate-900 mb-2">Tariff Calculator</h2>
+                  <p className="text-slate-600">
+                    Calculate import costs using official global tariffs. For custom scenarios, visit the Tariff Simulator tab.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -268,24 +402,18 @@ export default function Home() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl font-semibold text-slate-900">Historical Data</CardTitle>
+                  <CardTitle className="text-xl font-semibold text-slate-900">Historical Trends</CardTitle>
                   <CardDescription>
-                    Showing total import cost trends over time for {calculationResults?.data?.product || calculationResults?.product || "selected products"}{" "}
-                    from {calculationResults?.data?.exportingFrom || calculationResults?.exportingFrom || "various countries"} to{" "}
-                    {calculationResults?.data?.importingTo || calculationResults?.importingTo || "destination countries"}.
+                    Visualize tariff changes over time for {getCalculationProductName()} from {getCalculationExportingFrom()} to {getCalculationImportingTo()}.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-center h-48 bg-slate-50 rounded-lg">
-                    <p className="text-slate-500">
-                      {calculationResults
-                        ? "Historical data visualization would appear here"
-                        : "No historical data available for this selection."}
-                    </p>
-                  </div>
+                  <TariffTrendsVisualization />
                 </CardContent>
               </Card>
             </div>
+
+            <TariffComparisonPanel />
 
             {calculationResults && (
               <div className="mb-8">
@@ -334,6 +462,10 @@ export default function Home() {
           </>
         )}
 
+        {currentView === "trade-insights" && (
+          <TradeInsightsView apiBaseUrl={API_BASE_URL} getAuthToken={getAuthToken} />
+        )}
+
         {currentView === "admin" && user.role === "admin" && (
           <AdminDashboard />
         )}
@@ -342,3 +474,4 @@ export default function Home() {
     </div>
   )
 }
+

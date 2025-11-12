@@ -22,7 +22,6 @@ mvnw spring-boot:run
 Product endpoints:
 GET /api/products → ProductRoutingController → product-service
 GET /api/countries → ProductRoutingController → product-service
-GET /api/brands?product=... → ProductRoutingController → product-service
 
 Tariff calculation:
 GET /api/tariff?params... → TariffRoutingController → tariff-calculator

@@ -26,7 +26,6 @@ public class TariffResponse {
     public void setError(String error) { this.error = error; }
     public static class TariffCalculationData {
         private String product;
-        private String brand;
         private String exportingFrom;
         private String importingTo;
         private double quantity;
@@ -36,14 +35,15 @@ public class TariffResponse {
         private double tariffRate;
         private String tariffType;
         private List<BreakdownItem> breakdown;
+        private String currency;
 
         public TariffCalculationData() {}
 
-        public TariffCalculationData(String product, String brand, String exportingFrom, String importingTo,
+        public TariffCalculationData(String product, String exportingFrom, String importingTo,
                                    double quantity, String unit, double productCost, double totalCost,
-                                   double tariffRate, String tariffType, List<BreakdownItem> breakdown) {
+                                   double tariffRate, String tariffType, List<BreakdownItem> breakdown,
+                                   String currency) {
             this.product = product;
-            this.brand = brand;
             this.exportingFrom = exportingFrom;
             this.importingTo = importingTo;
             this.quantity = quantity;
@@ -53,12 +53,11 @@ public class TariffResponse {
             this.tariffRate = tariffRate;
             this.tariffType = tariffType;
             this.breakdown = breakdown;
+            this.currency = currency;
         }
 
         public String getProduct() { return product; }
         public void setProduct(String product) { this.product = product; }
-        public String getBrand() { return brand; }
-        public void setBrand(String brand) { this.brand = brand; }
         public String getExportingFrom() { return exportingFrom; }
         public void setExportingFrom(String exportingFrom) { this.exportingFrom = exportingFrom; }
         public String getImportingTo() { return importingTo; }
@@ -77,6 +76,8 @@ public class TariffResponse {
         public void setTariffType(String tariffType) { this.tariffType = tariffType; }
         public List<BreakdownItem> getBreakdown() { return breakdown; }
         public void setBreakdown(List<BreakdownItem> breakdown) { this.breakdown = breakdown; }
+        public String getCurrency() { return currency; }
+        public void setCurrency(String currency) { this.currency = currency; }
     }
 
     // for the breakdown that is displayed in the frontend to show the breakdown of the tariff

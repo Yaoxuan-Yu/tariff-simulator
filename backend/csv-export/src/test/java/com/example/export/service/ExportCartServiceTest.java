@@ -37,8 +37,16 @@ public class ExportCartServiceTest {
     @BeforeEach
     public void setUp() {
         testCalculation = new CalculationHistoryDto(
-            "Test Product", "Test Brand", "Singapore", "China",
-            2.0, "piece", 20.0, 15.0, 3.0, 23.0, "MFN"
+            "Test Product",
+            "Singapore",
+            "China",
+            2.0,
+            "piece",
+            20.0,
+            15.0,
+            3.0,
+            23.0,
+            "MFN"
         );
     }
 

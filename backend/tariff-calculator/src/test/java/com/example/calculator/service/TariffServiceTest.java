@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.when;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.example.calculator.dto.TariffResponse;
@@ -23,7 +23,6 @@ import com.example.calculator.exception.NotFoundException;
 import com.example.calculator.exception.ValidationException;
 import com.example.calculator.repository.ProductRepository;
 import com.example.calculator.repository.TariffRepository;
-import com.example.calculator.service.SessionTariffService;
 
 @ExtendWith(MockitoExtension.class)
 public class TariffServiceTest {
@@ -37,6 +36,9 @@ public class TariffServiceTest {
     @Mock
     private SessionTariffService sessionTariffService;
 
+    @Mock
+    private CurrencyService currencyService;
+
     @InjectMocks
     private TariffService tariffService;
 
@@ -46,21 +48,20 @@ public class TariffServiceTest {
 
     @BeforeEach
     public void setUp() {
-        // Product setup
+        Mockito.when(currencyService.convertFromUSD(Mockito.anyDouble(), Mockito.anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0, Double.class));
+
         testProduct = new Product();
         testProduct.setName("Test Product");
-        testProduct.setBrand("Test Brand");
         testProduct.setCost(10.0);
         testProduct.setUnit("piece");
 
-        // Tariff with FTA
         testTariffWithFTA = new Tariff();
         testTariffWithFTA.setCountry("China");
         testTariffWithFTA.setPartner("Singapore");
         testTariffWithFTA.setAhsWeighted(2.0);
         testTariffWithFTA.setMfnWeighted(10.0);
 
-        // Tariff without FTA
         testTariffWithoutFTA = new Tariff();
         testTariffWithoutFTA.setCountry("China");
         testTariffWithoutFTA.setPartner("USA");
@@ -69,15 +70,15 @@ public class TariffServiceTest {
     }
 
     // === Core functionality ===
+
     @Test
     void calculate_Success_WithFTA() {
-        when(productRepository.findByNameAndBrand("Test Product", "Test Brand"))
-            .thenReturn(List.of(testProduct));
+        when(productRepository.findByName("Test Product")).thenReturn(List.of(testProduct));
         when(tariffRepository.findByCountryAndPartner("China", "Singapore"))
-            .thenReturn(Optional.of(testTariffWithFTA));
+                .thenReturn(Optional.of(testTariffWithFTA));
 
         TariffResponse response = tariffService.calculate(
-            "Test Product", "Test Brand", "Singapore", "China", 3, null);
+                "Test Product", "Singapore", "China", 3, null, "USD");
 
         assertTrue(response.isSuccess());
         assertNotNull(response.getData());
@@ -85,126 +86,113 @@ public class TariffServiceTest {
         assertEquals(30.0, response.getData().getProductCost());
         assertEquals(2.0, response.getData().getTariffRate());
         assertEquals(30.6, response.getData().getTotalCost());
+        assertEquals("USD", response.getData().getCurrency());
     }
 
     @Test
     void calculate_Success_WithoutFTA() {
-        when(productRepository.findByNameAndBrand("Test Product", "Test Brand"))
-            .thenReturn(List.of(testProduct));
+        when(productRepository.findByName("Test Product")).thenReturn(List.of(testProduct));
         when(tariffRepository.findByCountryAndPartner("China", "USA"))
-            .thenReturn(Optional.of(testTariffWithoutFTA));
+                .thenReturn(Optional.of(testTariffWithoutFTA));
 
         TariffResponse response = tariffService.calculate(
-            "Test Product", "Test Brand", "USA", "China", 2, null);
+                "Test Product", "USA", "China", 2, null, "USD");
 
         assertTrue(response.isSuccess());
         assertEquals(20.0, response.getData().getProductCost());
         assertEquals(15.0, response.getData().getTariffRate());
         assertEquals(23.0, response.getData().getTotalCost());
+        assertEquals("USD", response.getData().getCurrency());
     }
 
-    // === Exception / error handling ===
+    // === Error handling ===
+
     @Test
-    void calculate_ProductNotFound() {
-        when(productRepository.findByNameAndBrand("Non-existent Product", "Test Brand"))
-            .thenReturn(List.of());
+    void calculate_ProductNotFound_ShouldThrow() {
+        when(productRepository.findByName("Non-existent Product")).thenReturn(List.of());
 
         NotFoundException thrown = assertThrows(NotFoundException.class, () ->
-            tariffService.calculate("Non-existent Product", "Test Brand", "Singapore", "China", 3, null)
+                tariffService.calculate("Non-existent Product", "Singapore", "China", 3, null, "USD")
         );
-
         assertTrue(thrown.getMessage().contains("Product not found"));
     }
 
     @Test
-    void calculate_TariffNotFound() {
-        when(productRepository.findByNameAndBrand("Test Product", "Test Brand"))
-            .thenReturn(List.of(testProduct));
+    void calculate_TariffNotFound_ShouldThrow() {
+        when(productRepository.findByName("Test Product")).thenReturn(List.of(testProduct));
         when(tariffRepository.findByCountryAndPartner("Mars", "Earth"))
-            .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty());
 
         NotFoundException thrown = assertThrows(NotFoundException.class, () ->
-            tariffService.calculate("Test Product", "Test Brand", "Earth", "Mars", 3, null)
+                tariffService.calculate("Test Product", "Earth", "Mars", 3, null, "USD")
         );
-
         assertTrue(thrown.getMessage().contains("Tariff data not available"));
     }
 
     @Test
-    void calculate_QuantityZero() {
-        when(productRepository.findByNameAndBrand("Test Product", "Test Brand"))
-            .thenReturn(List.of(testProduct));
+    void calculate_QuantityZero_ShouldThrow() {
+        when(productRepository.findByName("Test Product")).thenReturn(List.of(testProduct));
         when(tariffRepository.findByCountryAndPartner("China", "Singapore"))
-            .thenReturn(Optional.of(testTariffWithFTA));
+                .thenReturn(Optional.of(testTariffWithFTA));
 
         ValidationException thrown = assertThrows(ValidationException.class, () ->
-            tariffService.calculate("Test Product", "Test Brand", "Singapore", "China", 0, null)
+                tariffService.calculate("Test Product", "Singapore", "China", 0, null, "USD")
         );
-
         assertTrue(thrown.getMessage().contains("Quantity must be greater than 0"));
     }
 
     @Test
     void calculate_NullInputs_ShouldThrowValidationException() {
-        assertThrows(ValidationException.class, () -> {
-            tariffService.calculate(
-                null, "Test Brand", "Singapore", "China", 1, null
-            );
-        });
+        ValidationException p1 = assertThrows(ValidationException.class, () ->
+                tariffService.calculate(null, "Singapore", "China", 1, null, "USD")
+        );
+        assertTrue(p1.getMessage().contains("Product name is required"));
 
-        assertThrows(ValidationException.class, () -> {
-            tariffService.calculate(
-                "Test Product", null, "Singapore", "China", 1, null
-            );
-        });
+        ValidationException p2 = assertThrows(ValidationException.class, () ->
+                tariffService.calculate("Test Product", null, "China", 1, null, "USD")
+        );
+        assertTrue(p2.getMessage().contains("Exporting country is required"));
 
-        assertThrows(ValidationException.class, () -> {
-            tariffService.calculate(
-                "Test Product", "Test Brand", null, "China", 1, null
-            );
-        });
+        ValidationException p3 = assertThrows(ValidationException.class, () ->
+                tariffService.calculate("Test Product", "Singapore", null, 1, null, "USD")
+        );
+        assertTrue(p3.getMessage().contains("Importing country is required"));
     }
 
     @Test
-    void calculate_QuantityNegative() {
-        assertThrows(ValidationException.class, () -> {
-            tariffService.calculate(
-                "Test Product", "Test Brand", "Singapore", "China", -5, null);
-        });
+    void calculate_QuantityNegative_ShouldThrow() {
+        ValidationException thrown = assertThrows(ValidationException.class, () ->
+                tariffService.calculate("Test Product", "Singapore", "China", -5, null, "USD")
+        );
+        assertTrue(thrown.getMessage().contains("Quantity must be greater than 0"));
     }
 
     @Test
-    void calculate_CustomCostNonNumeric() {
-        when(productRepository.findByNameAndBrand("Test Product", "Test Brand"))
-            .thenReturn(List.of(testProduct));
+    void calculate_CustomCostNonNumeric_ShouldThrow() {
+        when(productRepository.findByName("Test Product")).thenReturn(List.of(testProduct));
         when(tariffRepository.findByCountryAndPartner("China", "Singapore"))
-            .thenReturn(Optional.of(testTariffWithFTA));
+                .thenReturn(Optional.of(testTariffWithFTA));
 
-        assertThrows(ValidationException.class, () -> {
-            tariffService.calculate(
-                "Test Product", "Test Brand", "Singapore", "China", 2, "abc");
-        });
+        ValidationException thrown = assertThrows(ValidationException.class, () ->
+                tariffService.calculate("Test Product", "Singapore", "China", 2, "abc", "USD")
+        );
+        assertTrue(thrown.getMessage().contains("Invalid custom cost format"));
     }
 
     @Test
-    void calculate_VeryLargeQuantity() {
-        when(productRepository.findByNameAndBrand("Test Product", "Test Brand"))
-            .thenReturn(List.of(testProduct));
+    void calculate_VeryLargeQuantity_Success() {
+        when(productRepository.findByName("Test Product")).thenReturn(List.of(testProduct));
         when(tariffRepository.findByCountryAndPartner("China", "Singapore"))
-            .thenReturn(Optional.of(testTariffWithFTA));
+                .thenReturn(Optional.of(testTariffWithFTA));
 
         double largeQuantity = 1_000_000;
         TariffResponse response = tariffService.calculate(
-            "Test Product", "Test Brand", "Singapore", "China", largeQuantity, null);
+                "Test Product", "Singapore", "China", largeQuantity, null, "USD");
 
         assertTrue(response.isSuccess());
         assertEquals(10_000_000.0, response.getData().getProductCost());
         assertEquals(10_200_000.0, response.getData().getTotalCost());
     }
 
-    // TODO: Add tests for calculateWithMode method with user-defined tariffs
-    // TODO: Add tests for calculateWithMode method with simulator mode
-    // TODO: Add tests for hasFTA method
-    // TODO: Add tests for findMatchingUserTariff method
+    // TODO: Add future tests for calculateWithMode and hasFTA when extended
 }
-

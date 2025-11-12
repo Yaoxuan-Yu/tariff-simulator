@@ -38,6 +38,9 @@ public class RoutingService {
     @Value("${services.csv-export.url:http://csv-export:8085}")
     private String csvExportUrl;
 
+    @Value("${services.trade-insights.url:http://trade-insights:8088}")
+    private String tradeInsightsUrl;
+
     public RoutingService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
@@ -70,6 +73,10 @@ public class RoutingService {
     // base url for csv-export service
     public String getCsvExportUrl() {
         return csvExportUrl;
+    }
+
+    public String getTradeInsightsUrl() {
+        return tradeInsightsUrl;
     }
 
     // run the outbound call using a string url

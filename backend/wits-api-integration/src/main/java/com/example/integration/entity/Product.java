@@ -1,8 +1,11 @@
 package com.example.integration.entity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "\"Products (Test)\"")
+@Table(name = "\"Products (Test)\"")  // make sure exact quotes in code
 public class Product {
     @Id
     @Column(name = "\"id\"")
@@ -11,8 +14,6 @@ public class Product {
     private String hsCode;
     @Column(name = "\"product\"")
     private String name;
-    @Column(name = "\"brand\"")
-    private String brand;
     @Column(name = "\"product_cost_usd\"")
     private Double cost;
     @Column(name = "\"unit\"")
@@ -24,8 +25,6 @@ public class Product {
     public void setHsCode(String hsCode) { this.hsCode = hsCode; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public String getBrand() { return brand; }
-    public void setBrand(String brand) { this.brand = brand; }
     public Double getCost() { return cost; }
     public void setCost(Double cost) { this.cost = cost; }
     public String getUnit() { return unit; }

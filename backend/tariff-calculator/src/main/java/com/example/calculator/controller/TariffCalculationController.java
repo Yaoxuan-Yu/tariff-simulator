@@ -1,18 +1,22 @@
 package com.example.calculator.controller;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.calculator.client.SessionManagementClient;
 import com.example.calculator.dto.TariffResponse;
 import com.example.calculator.service.TariffService;
-import com.example.calculator.client.SessionManagementClient;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import java.util.HashMap;
-import java.util.Map;
+import jakarta.servlet.http.HttpSession;
 
 @RestController
 @Tag(name = "Tariff Calculation", description = "API endpoints for tariff calculations")
@@ -33,21 +37,18 @@ public class TariffCalculationController {
     @GetMapping("/tariff")
     public ResponseEntity<TariffResponse> calculateTariff(
             @RequestParam String product,
-            @RequestParam String brand,
             @RequestParam String exportingFrom,
             @RequestParam String importingTo,
             @RequestParam double quantity,
             @RequestParam(required = false) String customCost,
+            @RequestParam(required = false, defaultValue = "USD") String currency,
             @RequestParam(required = false) String mode,
             @RequestParam(required = false) String userTariffId,
             HttpSession session) {
-        
+
         // Input validation
         if (product == null || product.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Product is required");
-        }
-        if (brand == null || brand.trim().isEmpty()) {
-            throw new com.example.calculator.exception.BadRequestException("Brand is required");
         }
         if (exportingFrom == null || exportingFrom.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Exporting country is required");
@@ -74,11 +75,11 @@ public class TariffCalculationController {
             // For simulator mode, call TariffService directly with session to use session-based tariffs
             response = tariffService.calculateWithMode(
                 product,
-                brand,
                 exportingFrom,
                 importingTo,
                 quantity,
                 customCost,
+                currency,
                 "user",
                 userTariffId,
                 session
@@ -86,11 +87,11 @@ public class TariffCalculationController {
         } else {
             response = tariffService.calculate(
                 product,
-                brand,
                 exportingFrom,
                 importingTo,
                 quantity,
-                customCost
+                customCost,
+                currency
             );
         }
 
@@ -100,11 +101,10 @@ public class TariffCalculationController {
                 // Convert TariffResponse to Map for HTTP call
                 Map<String, Object> calculationData = new HashMap<>();
                 calculationData.put("success", true);
-                
+
                 Map<String, Object> dataMap = new HashMap<>();
                 TariffResponse.TariffCalculationData data = response.getData();
                 dataMap.put("product", data.getProduct());
-                dataMap.put("brand", data.getBrand());
                 dataMap.put("exportingFrom", data.getExportingFrom());
                 dataMap.put("importingTo", data.getImportingTo());
                 dataMap.put("quantity", data.getQuantity());
@@ -113,9 +113,10 @@ public class TariffCalculationController {
                 dataMap.put("totalCost", data.getTotalCost());
                 dataMap.put("tariffRate", data.getTariffRate());
                 dataMap.put("tariffType", data.getTariffType());
-                
+                dataMap.put("currency", data.getCurrency());
+
                 calculationData.put("data", dataMap);
-                
+
                 // Call session-management service via HTTP
                 // Note: In distributed sessions, session ID is passed via header
                 sessionManagementClient.saveCalculation(session.getId(), calculationData);

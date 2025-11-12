@@ -16,8 +16,9 @@ public class WitsIntegrationController {
 
     @GetMapping("/admin/test-update-tariffs")
     public String testUpdateTariffs() {
-        tariffScheduler.runUpdate();
-        return "Test tariffs update triggered!";
+        new Thread(() -> tariffScheduler.runUpdate()).start();
+        return "Tariff update triggered, running in background!";
     }
+
 }
 

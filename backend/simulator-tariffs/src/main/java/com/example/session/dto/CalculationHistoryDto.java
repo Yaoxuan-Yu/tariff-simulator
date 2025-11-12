@@ -3,11 +3,13 @@ package com.example.session.dto;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CalculationHistoryDto implements Serializable {
     private static final long serialVersionUID = 1L;
     private String id;
     private String productName;
-    private String brand;
     private String exportingFrom;
     private String importingTo;
     private Double quantity;
@@ -27,13 +29,12 @@ public class CalculationHistoryDto implements Serializable {
         this.source = "global"; // default to global
     }
 
-    public CalculationHistoryDto(String productName, String brand, String exportingFrom,
+    public CalculationHistoryDto(String productName, String exportingFrom,
                                 String importingTo, Double quantity, String unit,
                                 Double productCost, Double tariffRate, Double tariffAmount,
                                 Double totalCost, String tariffType) {
         this.id = java.util.UUID.randomUUID().toString();
         this.productName = productName;
-        this.brand = brand;
         this.exportingFrom = exportingFrom;
         this.importingTo = importingTo;
         this.quantity = quantity;
@@ -52,9 +53,6 @@ public class CalculationHistoryDto implements Serializable {
 
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }
-
-    public String getBrand() { return brand; }
-    public void setBrand(String brand) { this.brand = brand; }
 
     public String getExportingFrom() { return exportingFrom; }
     public void setExportingFrom(String exportingFrom) { this.exportingFrom = exportingFrom; }

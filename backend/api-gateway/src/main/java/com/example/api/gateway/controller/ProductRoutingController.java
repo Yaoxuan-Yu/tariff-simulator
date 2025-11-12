@@ -1,15 +1,18 @@
 package com.example.api.gateway.controller;
 
+import java.util.List;
+
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.example.api.gateway.service.RoutingService;
 
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.List;
-import java.util.Map;
 
 // routes product and country lookups to product-service
 @RestController
@@ -51,7 +54,6 @@ public class ProductRoutingController {
         ResponseEntity<?> response = routingService.forwardRequest(targetUrl, HttpMethod.GET, entity, Object.class);
         return (ResponseEntity<List<String>>) response;
     }
-
     // GET /api/brands -> list brands for product
     @GetMapping("/brands")
     @SuppressWarnings("unchecked")

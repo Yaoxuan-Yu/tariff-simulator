@@ -34,7 +34,6 @@ public class ProductService {
     public List<String> getAllProducts() {
         return productRepository.findDistinctProducts();
     }
-
     // load brand information for a given product (validated)
     public List<BrandInfo> getBrandsByProduct(String product) {
         if (product == null || product.trim().isEmpty()) {

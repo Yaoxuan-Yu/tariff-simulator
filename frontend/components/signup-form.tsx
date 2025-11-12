@@ -16,6 +16,12 @@ interface SignupFormProps {
   onSwitchToLogin: () => void
 }
 
+const GOOGLE_LOGO_URL = "https://www.svgrepo.com/show/475656/google-color.svg"
+const MINIMUM_PASSWORD_LENGTH = 6
+const REDIRECT_TO_LOGIN_DELAY = 5000
+const ALLOWED_FILE_TYPES = ".pdf,.doc,.docx,.jpg,.jpeg,.png"
+const STORAGE_BUCKET_NAME = "admin-proofs"
+
 export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -25,6 +31,44 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [message, setMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  const clearMessage = () => {
+    setMessage("")
+  }
+
+  const isAdminRole = (): boolean => {
+    return userRole === "admin"
+  }
+
+  const validatePasswordMatch = (): boolean => {
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match")
+      return false
+    }
+    return true
+  }
+
+  const validatePasswordLength = (): boolean => {
+    if (password.length < MINIMUM_PASSWORD_LENGTH) {
+      setMessage(`Password must be at least ${MINIMUM_PASSWORD_LENGTH} characters long`)
+      return false
+    }
+    return true
+  }
+
+  const validateAdminRequirements = (): boolean => {
+    if (isAdminRole()) {
+      if (!adminProof.trim() && uploadedFiles.length === 0) {
+        setMessage("Please provide either written justification or upload documents for admin access")
+        return false
+      }
+    }
+    return true
+  }
+
+  const validateFormInputs = (): boolean => {
+    return validatePasswordMatch() && validatePasswordLength() && validateAdminRequirements()
+  }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -38,60 +82,87 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index))
   }
 
-  const uploadFilesToSupabase = async (userId: string) => {
+  const generateUniqueFileName = (userId: string, file: File): string => {
+    const fileExtension = file.name.split('.').pop()
+    const timestamp = Date.now()
+    const randomString = Math.random().toString(36).substring(7)
+    return `${userId}/${timestamp}_${randomString}.${fileExtension}`
+  }
+
+  const uploadSingleFile = async (userId: string, file: File): Promise<string | null> => {
+    const fileName = generateUniqueFileName(userId, file)
+    
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET_NAME)
+      .upload(fileName, file)
+
+    if (error) {
+      console.error('File upload error:', error)
+      return null
+    }
+
+    if (data) {
+      const { data: { publicUrl } } = supabase.storage
+        .from(STORAGE_BUCKET_NAME)
+        .getPublicUrl(fileName)
+      
+      return publicUrl
+    }
+
+    return null
+  }
+
+  const uploadFilesToSupabase = async (userId: string): Promise<string[]> => {
     const uploadedUrls: string[] = []
     
     for (const file of uploadedFiles) {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-      
-      const { data, error } = await supabase.storage
-        .from('admin-proofs')
-        .upload(fileName, file)
-
-      if (error) {
-        console.error('File upload error:', error)
-        continue
-      }
-
-      if (data) {
-        const { data: { publicUrl } } = supabase.storage
-          .from('admin-proofs')
-          .getPublicUrl(fileName)
-        
-        uploadedUrls.push(publicUrl)
+      const fileUrl = await uploadSingleFile(userId, file)
+      if (fileUrl) {
+        uploadedUrls.push(fileUrl)
       }
     }
 
     return uploadedUrls
   }
 
+  const createUserProfile = async (userId: string, fileUrls: string[]) => {
+    const { error: dbError } = await supabase
+      .from('user_profiles')
+      .insert({
+        user_id: userId,
+        email: email,
+        role: userRole,
+        admin_proof_text: isAdminRole() ? adminProof : null,
+        admin_proof_files: isAdminRole() ? fileUrls : null,
+        created_at: new Date().toISOString(),
+        approved_at: isAdminRole() ? new Date().toISOString() : null,
+      })
+
+    return dbError
+  }
+
+  const getSuccessMessage = (): string => {
+    if (isAdminRole()) {
+      return "Account created successfully! You have been granted admin access. Please check your email to verify your account."
+    }
+    return "Account created successfully! Please check your email to verify your account."
+  }
+
+  const handleSuccessfulSignup = (message: string) => {
+    setMessage(message)
+    setTimeout(() => {
+      onSwitchToLogin()
+    }, REDIRECT_TO_LOGIN_DELAY)
+  }
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    setMessage("")
+    clearMessage()
     setIsLoading(true)
 
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setMessage("Passwords do not match")
+    if (!validateFormInputs()) {
       setIsLoading(false)
       return
-    }
-
-    // Validate password length
-    if (password.length < 6) {
-      setMessage("Password must be at least 6 characters long")
-      setIsLoading(false)
-      return
-    }
-
-    // Validate admin requirements
-    if (userRole === "admin") {
-      if (!adminProof.trim() && uploadedFiles.length === 0) {
-        setMessage("Please provide either written justification or upload documents for admin access")
-        setIsLoading(false)
-        return
-      }
     }
 
     try {
@@ -109,23 +180,11 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
       if (data?.user) {
         let fileUrls: string[] = []
         
-        // Upload files if admin role
-        if (userRole === "admin" && uploadedFiles.length > 0) {
+        if (isAdminRole() && uploadedFiles.length > 0) {
           fileUrls = await uploadFilesToSupabase(data.user.id)
         }
 
-        // Store user role and admin request in database
-        const { error: dbError } = await supabase
-          .from('user_profiles')
-          .insert({
-            user_id: data.user.id,
-            email: email,
-            role: userRole, // Auto-approve: 'admin' or 'user'
-            admin_proof_text: userRole === "admin" ? adminProof : null,
-            admin_proof_files: userRole === "admin" ? fileUrls : null,
-            created_at: new Date().toISOString(),
-            approved_at: userRole === "admin" ? new Date().toISOString() : null,
-          })
+        const dbError = await createUserProfile(data.user.id, fileUrls)
 
         if (dbError) {
           console.error('Database error:', dbError)
@@ -134,15 +193,8 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
           return
         }
 
-        if (userRole === "admin") {
-          setMessage("Account created successfully! You have been granted admin access. Please check your email to verify your account.")
-        } else {
-          setMessage("Account created successfully! Please check your email to verify your account.")
-        }
-        
-        setTimeout(() => {
-          onSwitchToLogin()
-        }, 5000)
+        const successMsg = getSuccessMessage()
+        handleSuccessfulSignup(successMsg)
       }
     } catch (err) {
       setMessage("An unexpected error occurred")
@@ -151,15 +203,19 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
     }
   }
 
+  const getRedirectUrl = (): string => {
+    return `${window.location.origin}/`
+  }
+
   const handleGoogleSignIn = async () => {
-    setMessage("")
+    clearMessage()
     setIsLoading(true)
     
     try {
       const { error } = await supabase.auth.signInWithOAuth({ 
         provider: 'google', 
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: getRedirectUrl()
         }
       })
       
@@ -173,6 +229,18 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
     }
   }
 
+  const getSubmitButtonText = (): string => {
+    return isLoading ? "Creating account..." : "Sign Up"
+  }
+
+  const getFileSizeInKB = (file: File): string => {
+    return (file.size / 1024).toFixed(1)
+  }
+
+  const isSuccessMessage = (): boolean => {
+    return message.includes("successfully")
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <Card className="w-full max-w-md">
@@ -182,7 +250,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
         </CardHeader>
         <CardContent>
           {message && (
-            <Alert variant={message.includes("successfully") ? "default" : "destructive"} className="mb-4">
+            <Alert variant={isSuccessMessage() ? "default" : "destructive"} className="mb-4">
               <AlertDescription>{message}</AlertDescription>
             </Alert>
           )}
@@ -194,7 +262,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
             className="w-full mb-4 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300"
           >
             <img 
-              src="https://www.svgrepo.com/show/475656/google-color.svg" 
+              src={GOOGLE_LOGO_URL} 
               alt="Google" 
               className="w-5 h-5 mr-2" 
             />
@@ -263,7 +331,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
               />
             </div>
 
-            {userRole === "admin" && (
+            {isAdminRole() && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="adminProof">Admin Access Justification</Label>
@@ -286,7 +354,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
                       multiple
                       onChange={handleFileUpload}
                       className="hidden"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      accept={ALLOWED_FILE_TYPES}
                     />
                     <label htmlFor="documents" className="cursor-pointer">
                       <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
@@ -312,7 +380,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
                               {file.name}
                             </span>
                             <span className="text-xs text-gray-500">
-                              ({(file.size / 1024).toFixed(1)} KB)
+                              ({getFileSizeInKB(file)} KB)
                             </span>
                           </div>
                           <Button
@@ -343,7 +411,7 @@ export function SignupForm({ onSignup, onSwitchToLogin }: SignupFormProps) {
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" 
               disabled={isLoading}
             >
-              {isLoading ? "Creating account..." : "Sign Up"}
+              {getSubmitButtonText()}
             </Button>
           </div>
 

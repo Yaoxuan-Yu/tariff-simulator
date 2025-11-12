@@ -27,7 +27,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
                         // Trust requests from API Gateway (internal service-to-service)
-                        .requestMatchers("/api/**").permitAll()
+                        .requestMatchers("/admin/test-update-tariffs").permitAll()
                         .anyRequest().permitAll()
                 )
                 .httpBasic(basic -> basic.disable())

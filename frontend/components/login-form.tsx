@@ -12,34 +12,55 @@ interface LoginFormProps {
   onSwitchToSignup: () => void
 }
 
+const GOOGLE_LOGO_URL = "https://www.svgrepo.com/show/475656/google-color.svg"
+
 export function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [message, setMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
+  const clearMessage = () => {
+    setMessage("")
+  }
+
+  const clearFormFields = () => {
+    setEmail("")
+    setPassword("")
+  }
+
+  const handleAuthError = (error: any) => {
+    setMessage(error.message)
+    clearFormFields()
+  }
+
+  const handleAuthSuccess = (user: any) => {
+    if (user) {
+      onLogin(user)
+    }
+  }
+
+  const getRedirectUrl = (): string => {
+    return `${window.location.origin}/`
+  }
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    setMessage("")
+    clearMessage()
     setIsLoading(true)
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
+        email,
+        password,
       })
 
       if (error) {
-        setMessage(error.message)
-        setEmail("")
-        setPassword("")
+        handleAuthError(error)
         return
       }
 
-      if (data?.user) {
-        onLogin(data.user)
-        return
-      }
+      handleAuthSuccess(data?.user)
     } catch (err) {
       setMessage("An unexpected error occurred")
     } finally {
@@ -48,14 +69,14 @@ export function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
   }
 
   const handleGoogleSignIn = async () => {
-    setMessage("")
+    clearMessage()
     setIsLoading(true)
     
     try {
       const { error } = await supabase.auth.signInWithOAuth({ 
         provider: 'google', 
         options: {
-          redirectTo: `${window.location.origin}/`
+          redirectTo: getRedirectUrl()
         }
       })
       
@@ -67,6 +88,10 @@ export function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const getLoadingButtonText = (): string => {
+    return isLoading ? "Signing in..." : "Sign In"
   }
 
   return (
@@ -90,7 +115,7 @@ export function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
             className="w-full mb-4 bg-white hover:bg-gray-50 text-gray-900 border border-gray-300"
           >
             <img 
-              src="https://www.svgrepo.com/show/475656/google-color.svg" 
+              src={GOOGLE_LOGO_URL} 
               alt="Google" 
               className="w-5 h-5 mr-2" 
             />
@@ -142,7 +167,7 @@ export function LoginForm({ onLogin, onSwitchToSignup }: LoginFormProps) {
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" 
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {getLoadingButtonText()}
             </Button>
           </form>
 

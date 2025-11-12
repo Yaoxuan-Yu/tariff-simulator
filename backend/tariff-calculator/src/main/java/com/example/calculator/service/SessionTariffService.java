@@ -12,6 +12,68 @@ public class SessionTariffService {
     
     private static final String SESSION_TARIFFS_KEY = "SESSION_USER_TARIFFS";
 
+    private List<java.util.Map<String, Object>> getSessionTariffsRaw(HttpSession session) {
+        @SuppressWarnings("unchecked")
+        List<Object> rawList = (List<Object>) session.getAttribute(SESSION_TARIFFS_KEY);
+        List<java.util.Map<String, Object>> mapped = new ArrayList<>();
+        if (rawList != null) {
+            for (Object item : rawList) {
+                mapped.add(toSessionMap(item));
+            }
+        }
+        return mapped;
+    }
+
+    private java.util.Map<String, Object> toSessionMap(Object entry) {
+        if (entry instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> existing = (java.util.Map<String, Object>) entry;
+            return new java.util.HashMap<>(existing);
+        }
+        if (entry instanceof TariffDefinitionsResponse.TariffDefinitionDto dto) {
+            return toSessionMap(dto);
+        }
+        return new java.util.HashMap<>();
+    }
+
+    private java.util.Map<String, Object> toSessionMap(TariffDefinitionsResponse.TariffDefinitionDto dto) {
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("id", dto.getId());
+        map.put("product", dto.getProduct());
+        map.put("exportingFrom", dto.getExportingFrom());
+        map.put("importingTo", dto.getImportingTo());
+        map.put("type", dto.getType());
+        map.put("rate", dto.getRate());
+        map.put("effectiveDate", dto.getEffectiveDate());
+        map.put("expirationDate", dto.getExpirationDate());
+        return map;
+    }
+
+    private TariffDefinitionsResponse.TariffDefinitionDto fromSessionMap(java.util.Map<String, Object> map) {
+        return new TariffDefinitionsResponse.TariffDefinitionDto(
+                (String) map.get("id"),
+                (String) map.get("product"),
+                (String) map.get("exportingFrom"),
+                (String) map.get("importingTo"),
+                (String) map.get("type"),
+                map.get("rate") instanceof Number ? ((Number) map.get("rate")).doubleValue() : Double.parseDouble(String.valueOf(map.get("rate"))),
+                (String) map.get("effectiveDate"),
+                (String) map.get("expirationDate")
+        );
+    }
+
+    private List<TariffDefinitionsResponse.TariffDefinitionDto> toDtoList(List<java.util.Map<String, Object>> sessionTariffs) {
+        List<TariffDefinitionsResponse.TariffDefinitionDto> dtos = new ArrayList<>();
+        for (java.util.Map<String, Object> entry : sessionTariffs) {
+            dtos.add(fromSessionMap(entry));
+        }
+        return dtos;
+    }
+
+    private void persistSessionTariffs(HttpSession session, List<java.util.Map<String, Object>> sessionTariffs) {
+        session.setAttribute(SESSION_TARIFFS_KEY, new ArrayList<>(sessionTariffs));
+    }
+
     // Save tariff definition to session (for simulator mode)
     public TariffDefinitionsResponse.TariffDefinitionDto saveTariffDefinition(
             HttpSession session, 
@@ -32,23 +94,23 @@ public class SessionTariffService {
                 );
             }
 
-            List<TariffDefinitionsResponse.TariffDefinitionDto> sessionTariffs = getTariffDefinitions(session);
+            List<java.util.Map<String, Object>> sessionTariffs = getSessionTariffsRaw(session);
             
             // Check if tariff with same ID exists, update it; otherwise add new
             boolean found = false;
             for (int i = 0; i < sessionTariffs.size(); i++) {
-                if (sessionTariffs.get(i).getId().equals(dto.getId())) {
-                    sessionTariffs.set(i, dto);
+                if (dto.getId().equals(sessionTariffs.get(i).get("id"))) {
+                    sessionTariffs.set(i, toSessionMap(dto));
                     found = true;
                     break;
                 }
             }
             
             if (!found) {
-                sessionTariffs.add(dto);
+                sessionTariffs.add(toSessionMap(dto));
             }
 
-            session.setAttribute(SESSION_TARIFFS_KEY, sessionTariffs);
+            persistSessionTariffs(session, sessionTariffs);
             return dto;
         } catch (Exception e) {
             throw new com.example.calculator.exception.DataAccessException("Failed to save tariff definition to session", e);
@@ -57,18 +119,16 @@ public class SessionTariffService {
 
     // Get all tariff definitions from session
     public List<TariffDefinitionsResponse.TariffDefinitionDto> getTariffDefinitions(HttpSession session) {
-        @SuppressWarnings("unchecked")
-        List<TariffDefinitionsResponse.TariffDefinitionDto> sessionTariffs = 
-            (List<TariffDefinitionsResponse.TariffDefinitionDto>) session.getAttribute(SESSION_TARIFFS_KEY);
-        return sessionTariffs != null ? new ArrayList<>(sessionTariffs) : new ArrayList<>();
+        return toDtoList(getSessionTariffsRaw(session));
     }
 
     // Get specific tariff definition by ID
     public TariffDefinitionsResponse.TariffDefinitionDto getTariffDefinitionById(HttpSession session, String id) {
-        List<TariffDefinitionsResponse.TariffDefinitionDto> sessionTariffs = getTariffDefinitions(session);
+        List<java.util.Map<String, Object>> sessionTariffs = getSessionTariffsRaw(session);
         return sessionTariffs.stream()
-                .filter(t -> t.getId().equals(id))
+                .filter(t -> id.equals(t.get("id")))
                 .findFirst()
+                .map(this::fromSessionMap)
                 .orElse(null);
     }
 
@@ -77,10 +137,10 @@ public class SessionTariffService {
             HttpSession session, 
             String id, 
             TariffDefinitionsResponse.TariffDefinitionDto dto) {
-        List<TariffDefinitionsResponse.TariffDefinitionDto> sessionTariffs = getTariffDefinitions(session);
+        List<java.util.Map<String, Object>> sessionTariffs = getSessionTariffsRaw(session);
         
         for (int i = 0; i < sessionTariffs.size(); i++) {
-            if (sessionTariffs.get(i).getId().equals(id)) {
+            if (id.equals(sessionTariffs.get(i).get("id"))) {
                 // Update with new data but keep the same ID
                 TariffDefinitionsResponse.TariffDefinitionDto updated = new TariffDefinitionsResponse.TariffDefinitionDto(
                     id,
@@ -92,8 +152,8 @@ public class SessionTariffService {
                     dto.getEffectiveDate(),
                     dto.getExpirationDate()
                 );
-                sessionTariffs.set(i, updated);
-                session.setAttribute(SESSION_TARIFFS_KEY, sessionTariffs);
+                sessionTariffs.set(i, toSessionMap(updated));
+                persistSessionTariffs(session, sessionTariffs);
                 return updated;
             }
         }
@@ -103,15 +163,15 @@ public class SessionTariffService {
 
     // Delete tariff definition from session
     public void deleteTariffDefinition(HttpSession session, String id) {
-        List<TariffDefinitionsResponse.TariffDefinitionDto> sessionTariffs = getTariffDefinitions(session);
+        List<java.util.Map<String, Object>> sessionTariffs = getSessionTariffsRaw(session);
         
-        boolean removed = sessionTariffs.removeIf(t -> t.getId().equals(id));
+        boolean removed = sessionTariffs.removeIf(t -> id.equals(t.get("id")));
         
         if (!removed) {
             throw new com.example.calculator.exception.NotFoundException("Tariff definition not found in session: " + id);
         }
         
-        session.setAttribute(SESSION_TARIFFS_KEY, sessionTariffs);
+        persistSessionTariffs(session, sessionTariffs);
     }
 
     // Clear all tariff definitions from session

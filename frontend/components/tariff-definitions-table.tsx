@@ -50,6 +50,46 @@ interface TariffDefinitionsTableProps {
   simulatorMode?: boolean
 }
 
+interface Filters {
+  product: string
+  exportingFrom: string
+  importingTo: string
+}
+
+interface NewTariff {
+  product: string
+  exportingFrom: string
+  importingTo: string
+  type: string
+  rate: string
+  effectiveDate: string
+  expirationDate: string
+}
+
+const API_BASE_URL = "http://localhost:8080/api"
+const TARIFF_TYPE_AHS = "AHS"
+const TARIFF_TYPE_MFN = "MFN"
+const FILTER_ALL_VALUE = "all"
+const MINIMUM_RATE = 0
+const USER_ID_PREFIX = "user"
+const ADMIN_MODIFIED_PREFIX = "admin-modified"
+
+const createInitialFilters = (): Filters => ({
+  product: "",
+  exportingFrom: "",
+  importingTo: "",
+})
+
+const createInitialNewTariff = (): NewTariff => ({
+  product: "",
+  exportingFrom: "",
+  importingTo: "",
+  type: "",
+  rate: "",
+  effectiveDate: "",
+  expirationDate: "",
+})
+
 export function TariffDefinitionsTable({ userRole, simulatorMode = false }: TariffDefinitionsTableProps) {
   const [globalTariffs, setGlobalTariffs] = useState<TariffDefinition[]>([])
   const [modifiedGlobalTariffs, setModifiedGlobalTariffs] = useState<TariffDefinition[]>([])
@@ -59,110 +99,39 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTariff, setEditingTariff] = useState<TariffDefinition | null>(null)
   const [alertDialog, setAlertDialog] = useState({ open: false, title: "", message: "" })
-
-  const [filters, setFilters] = useState({
-    product: "",
-    exportingFrom: "",
-    importingTo: "",
-  })
-
-  const [newTariff, setNewTariff] = useState({
-    product: "",
-    exportingFrom: "",
-    importingTo: "",
-    type: "",
-    rate: "",
-    effectiveDate: "",
-    expirationDate: "",
-  })
-
+  const [filters, setFilters] = useState<Filters>(createInitialFilters())
+  const [newTariff, setNewTariff] = useState<NewTariff>(createInitialNewTariff())
   const [countries, setCountries] = useState<string[]>([])
   const [products, setProducts] = useState<string[]>([])
 
-  useEffect(() => {
-    const loadTariffs = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const token = session?.access_token
-        const authHeaders = {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        }
+  const isAdminRole = (): boolean => {
+    return userRole === "admin"
+  }
 
-        if (!simulatorMode) {
-          // Load global tariffs
-          const globalRes = await fetch("http://localhost:8080/api/tariff-definitions/global", { 
-            headers: authHeaders,
-            credentials: 'include'
-          })
-          if (!globalRes.ok) throw new Error(`Global defs failed ${globalRes.status}`)
-          const globalData: TariffDefinitionsResponse = await globalRes.json()
-          
-          if (globalData.success && globalData.data) {
-            setGlobalTariffs(globalData.data)
-          }
+  const getAuthToken = async (): Promise<string> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token || ""
+  }
 
-          // Load modified global tariffs for admins
-          if (userRole === "admin") {
-            const modifiedRes = await fetch("http://localhost:8080/api/tariff-definitions/modified", { 
-              headers: authHeaders,
-              credentials: 'include'
-            })
-            if (modifiedRes.ok) {
-              const modifiedData: TariffDefinitionsResponse = await modifiedRes.json()
-              if (modifiedData.success && modifiedData.data) {
-                setModifiedGlobalTariffs(modifiedData.data)
-              }
-            }
-          }
-        }
+  const createAuthHeaders = (token: string): Record<string, string> => ({
+    'Authorization': token ? `Bearer ${token}` : '',
+    'Content-Type': 'application/json'
+  })
 
-        if (simulatorMode) {
-          // Load user-defined tariffs for simulator mode
-          const userRes = await fetch("http://localhost:8080/api/tariff-definitions/user", { 
-            headers: authHeaders,
-            credentials: 'include'
-          })
-          if (!userRes.ok) throw new Error(`User defs failed ${userRes.status}`)
-          const userData: TariffDefinitionsResponse = await userRes.json()
-          
-          if (userData.success && userData.data) {
-            setUserTariffs(userData.data)
-          }
-        }
-
-        // Load countries and products
-        const [countriesRes, productsRes] = await Promise.all([
-          fetch("http://localhost:8080/api/countries", { 
-            headers: authHeaders,
-            credentials: 'include'
-          }),
-          fetch("http://localhost:8080/api/products", { 
-            headers: authHeaders,
-            credentials: 'include'
-          }),
-        ])
-
-        if (!countriesRes.ok) throw new Error(`Countries failed ${countriesRes.status}`)
-        if (!productsRes.ok) throw new Error(`Products failed ${productsRes.status}`)
-
-        const countriesList: string[] = await countriesRes.json()
-        const productsList: string[] = await productsRes.json()
-
-        setCountries(countriesList)
-        setProducts(productsList)
-      } catch (err) {
-        showAlert("Error", "An unexpected error occurred while loading tariffs")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadTariffs()
-  }, [userRole, simulatorMode])
+  const fetchDataWithAuth = async (endpoint: string): Promise<Response> => {
+    const token = await getAuthToken()
+    return fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: createAuthHeaders(token),
+      credentials: 'include'
+    })
+  }
 
   const showAlert = (title: string, message: string) => {
     setAlertDialog({ open: true, title, message })
+  }
+
+  const closeAlert = () => {
+    setAlertDialog({ ...alertDialog, open: false })
   }
 
   const handleEditTariff = (tariff: TariffDefinition) => {
@@ -180,96 +149,132 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
   }
 
   const handleUpdateTariff = async () => {
-    if (!editingTariff) return
-
-    // Validation
-    if (
-      !newTariff.product ||
-      !newTariff.exportingFrom ||
-      !newTariff.importingTo ||
-      !newTariff.type ||
-      !newTariff.rate ||
-      !newTariff.effectiveDate ||
-      !newTariff.expirationDate
-    ) {
-      showAlert("Incomplete Information", "Please fill in all required fields before submitting.")
+    if (!editingTariff) {
       return
     }
 
-    const rateValue = Number.parseFloat(newTariff.rate)
-    if (isNaN(rateValue) || rateValue < 0) {
-      showAlert("Invalid Rate", "Please enter a valid positive number for the tariff rate.")
+    if (!validateTariffInput()) {
       return
     }
 
     const payload = {
-      id: editingTariff.id,
       product: newTariff.product,
       exportingFrom: newTariff.exportingFrom,
       importingTo: newTariff.importingTo,
       type: newTariff.type,
-      rate: rateValue,
+      rate: Number.parseFloat(newTariff.rate),
       effectiveDate: newTariff.effectiveDate,
       expirationDate: newTariff.expirationDate,
     }
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-
-      const endpoint = `http://localhost:8080/api/tariff-definitions/modified/${editingTariff.id}`
+      const token = await getAuthToken()
+      const isUserTariff = simulatorMode || editingTariff.id.startsWith(USER_ID_PREFIX)
+      const endpoint = isUserTariff
+        ? `${API_BASE_URL}/tariff-definitions/user/${editingTariff.id}`
+        : `${API_BASE_URL}/tariff-definitions/modified/${editingTariff.id}`
 
       const res = await fetch(endpoint, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
+        headers: createAuthHeaders(token),
         credentials: 'include',
         body: JSON.stringify(payload),
       })
 
-      if (!res.ok) throw new Error(`Update tariff failed ${res.status}`)
-      const response: TariffDefinitionsResponse = await res.json()
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || "Update failed")
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Update failed ${res.status}: ${errorText}`)
       }
 
-      // Reload modified tariffs from backend
-      const modifiedRes = await fetch("http://localhost:8080/api/tariff-definitions/modified", {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      })
-      if (modifiedRes.ok) {
-        const modifiedData: TariffDefinitionsResponse = await modifiedRes.json()
-        if (modifiedData.success && modifiedData.data) {
-          setModifiedGlobalTariffs(modifiedData.data)
-        }
+      if (isUserTariff) {
+        await reloadUserTariffs()
+        showAlert("Success", "Tariff has been successfully updated.")
+      } else {
+        await reloadModifiedTariffs()
+        showAlert("Success", "Tariff has been successfully updated.")
       }
 
-      showAlert("Success", "Tariff has been successfully updated.")
-      setNewTariff({
-        product: "",
-        exportingFrom: "",
-        importingTo: "",
-        type: "",
-        rate: "",
-        effectiveDate: "",
-        expirationDate: "",
-      })
       setEditingTariff(null)
+      setNewTariff(createInitialNewTariff())
       setIsEditDialogOpen(false)
-    } catch (e) {
+    } catch (error) {
+      console.error("Failed to update tariff", error)
       showAlert("Error", "Failed to update tariff. Please try again.")
     }
   }
 
-  const handleAddTariff = async () => {
-    // Validation
+  const loadGlobalTariffs = async () => {
+    const globalRes = await fetchDataWithAuth("/tariff-definitions/global")
+    if (!globalRes.ok) throw new Error(`Global defs failed ${globalRes.status}`)
+    const globalData: TariffDefinitionsResponse = await globalRes.json()
+    
+    if (globalData.success && globalData.data) {
+      setGlobalTariffs(globalData.data)
+    }
+  }
+
+  const loadModifiedGlobalTariffs = async () => {
+    if (!isAdminRole()) return
+
+    const modifiedRes = await fetchDataWithAuth("/tariff-definitions/modified")
+    if (modifiedRes.ok) {
+      const modifiedData: TariffDefinitionsResponse = await modifiedRes.json()
+      if (modifiedData.success && modifiedData.data) {
+        setModifiedGlobalTariffs(modifiedData.data)
+      }
+    }
+  }
+
+  const loadUserTariffs = async () => {
+    const userRes = await fetchDataWithAuth("/tariff-definitions/user")
+    if (!userRes.ok) throw new Error(`User defs failed ${userRes.status}`)
+    const userData: TariffDefinitionsResponse = await userRes.json()
+    
+    if (userData.success && userData.data) {
+      setUserTariffs(userData.data)
+    }
+  }
+
+  const loadCountriesAndProducts = async () => {
+    const [countriesRes, productsRes] = await Promise.all([
+      fetchDataWithAuth("/countries"),
+      fetchDataWithAuth("/products"),
+    ])
+
+    if (!countriesRes.ok) throw new Error(`Countries failed ${countriesRes.status}`)
+    if (!productsRes.ok) throw new Error(`Products failed ${productsRes.status}`)
+
+    const countriesList: string[] = await countriesRes.json()
+    const productsList: string[] = await productsRes.json()
+
+    setCountries(countriesList)
+    setProducts(productsList)
+  }
+
+  const loadTariffs = async () => {
+    try {
+      if (!simulatorMode) {
+        await loadGlobalTariffs()
+        await loadModifiedGlobalTariffs()
+      }
+
+      if (simulatorMode) {
+        await loadUserTariffs()
+      }
+
+      await loadCountriesAndProducts()
+    } catch (err) {
+      showAlert("Error", "An unexpected error occurred while loading tariffs")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadTariffs()
+  }, [userRole, simulatorMode])
+
+  const validateAllFieldsFilled = (): boolean => {
     if (
       !newTariff.product ||
       !newTariff.exportingFrom ||
@@ -280,159 +285,196 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
       !newTariff.expirationDate
     ) {
       showAlert("Incomplete Information", "Please fill in all required fields before submitting.")
-      return
+      return false
     }
+    return true
+  }
 
+  const validateRate = (): boolean => {
     const rateValue = Number.parseFloat(newTariff.rate)
-    if (isNaN(rateValue) || rateValue < 0) {
+    if (isNaN(rateValue) || rateValue < MINIMUM_RATE) {
       showAlert("Invalid Rate", "Please enter a valid positive number for the tariff rate.")
-      return
+      return false
     }
+    return true
+  }
 
+  const validateCountryPair = (): boolean => {
     if (newTariff.exportingFrom === newTariff.importingTo) {
       showAlert("Invalid Country Pair", "Exporting and importing countries must be different.")
-      return
+      return false
     }
+    return true
+  }
 
-    const payload = {
-      id: `${simulatorMode || userRole === "general" ? "user" : "admin-modified"}-${Date.now()}`,
+  const validateTariffInput = (): boolean => {
+    return validateAllFieldsFilled() && validateRate() && validateCountryPair()
+  }
+
+  const generateTariffId = (): string => {
+    const prefix = simulatorMode || !isAdminRole() ? USER_ID_PREFIX : ADMIN_MODIFIED_PREFIX
+    const timestamp = Date.now()
+    return `${prefix}-${timestamp}`
+  }
+
+  const createTariffPayload = () => {
+    return {
+      id: generateTariffId(),
       product: newTariff.product,
       exportingFrom: newTariff.exportingFrom,
       importingTo: newTariff.importingTo,
       type: newTariff.type,
-      rate: rateValue,
+      rate: Number.parseFloat(newTariff.rate),
       effectiveDate: newTariff.effectiveDate,
       expirationDate: newTariff.expirationDate,
     }
+  }
+
+  const getAddTariffEndpoint = (): string => {
+    if (!simulatorMode && isAdminRole()) {
+      return `${API_BASE_URL}/tariff-definitions/modified`
+    }
+    return `${API_BASE_URL}/tariff-definitions/user`
+  }
+
+  const addTariffToBackend = async (payload: any): Promise<TariffDefinitionsResponse> => {
+    const token = await getAuthToken()
+    const endpoint = getAddTariffEndpoint()
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) throw new Error(`Add tariff failed ${res.status}`)
+    return res.json()
+  }
+
+  const reloadUserTariffs = async () => {
+    const token = await getAuthToken()
+    const userRes = await fetch(`${API_BASE_URL}/tariff-definitions/user`, {
+      headers: createAuthHeaders(token),
+      credentials: 'include'
+    })
+    
+    if (userRes.ok) {
+      const userData: TariffDefinitionsResponse = await userRes.json()
+      if (userData.success && userData.data) {
+        setUserTariffs(userData.data)
+      }
+    }
+  }
+
+  const checkIfTariffReplaced = (payload: any): boolean => {
+    return modifiedGlobalTariffs.some(
+      t => t.product === payload.product && 
+           t.exportingFrom === payload.exportingFrom && 
+           t.importingTo === payload.importingTo
+    )
+  }
+
+  const showSimulatorSuccessMessage = () => {
+    showAlert("Success", "Simulated tariff has been successfully added.")
+  }
+
+  const showAdminSuccessMessage = (payload: any) => {
+    const replaced = checkIfTariffReplaced(payload)
+    
+    if (replaced) {
+      showAlert(
+        "Tariff Updated",
+        `The global tariff for ${payload.product} from ${payload.exportingFrom} to ${payload.importingTo} has been updated.`
+      )
+    } else {
+      showAlert("Success", "New global tariff has been successfully added to the system.")
+    }
+  }
+
+  const handleSimulatorModeSuccess = async (response: TariffDefinitionsResponse) => {
+    await reloadUserTariffs()
+    showSimulatorSuccessMessage()
+  }
+
+  const handleAdminModeSuccess = (response: TariffDefinitionsResponse, payload: any) => {
+    setModifiedGlobalTariffs((prev) => [...prev, ...response.data!])
+    showAdminSuccessMessage(payload)
+  }
+
+  const resetNewTariffForm = () => {
+    setNewTariff(createInitialNewTariff())
+    setIsDialogOpen(false)
+  }
+
+  const handleAddTariff = async () => {
+    if (!validateTariffInput()) {
+      return
+    }
+
+    const payload = createTariffPayload()
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-
-      let endpoint = "http://localhost:8080/api/tariff-definitions/user"
-      if (!simulatorMode && userRole === "admin") {
-        endpoint = "http://localhost:8080/api/tariff-definitions/modified"
-      }
-
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) throw new Error(`Add tariff failed ${res.status}`)
-      const response: TariffDefinitionsResponse = await res.json()
+      const response = await addTariffToBackend(payload)
 
       if (!response.success || !response.data) {
         throw new Error(response.error || "Add failed")
       }
 
       if (simulatorMode) {
-        // Reload tariffs from backend to ensure we have all of them
-        const userRes = await fetch("http://localhost:8080/api/tariff-definitions/user", {
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        })
-        if (userRes.ok) {
-          const userData: TariffDefinitionsResponse = await userRes.json()
-          if (userData.success && userData.data) {
-            setUserTariffs(userData.data)
-          }
-        }
-        showAlert("Success", "Simulated tariff has been successfully added.")
-      } else if (userRole === "admin") {
-        setModifiedGlobalTariffs((prev) => [...prev, ...response.data!])
-        
-        // Check if replaced existing
-        const replaced = modifiedGlobalTariffs.some(
-          t => t.product === payload.product && 
-               t.exportingFrom === payload.exportingFrom && 
-               t.importingTo === payload.importingTo
-        )
-        
-        if (replaced) {
-          showAlert(
-            "Tariff Updated",
-            `The global tariff for ${payload.product} from ${payload.exportingFrom} to ${payload.importingTo} has been updated.`
-          )
-        } else {
-          showAlert("Success", "New global tariff has been successfully added to the system.")
-        }
+        await handleSimulatorModeSuccess(response)
+      } else if (isAdminRole()) {
+        handleAdminModeSuccess(response, payload)
       }
 
-      setNewTariff({
-        product: "",
-        exportingFrom: "",
-        importingTo: "",
-        type: "",
-        rate: "",
-        effectiveDate: "",
-        expirationDate: "",
-      })
-      setIsDialogOpen(false)
+      resetNewTariffForm()
     } catch (e) {
       showAlert("Error", "Failed to add tariff. Please try again.")
     }
   }
 
+  const deleteTariffFromBackend = async (id: string, isModifiedGlobal: boolean): Promise<Response> => {
+    const token = await getAuthToken()
+    const endpoint = isModifiedGlobal 
+      ? `${API_BASE_URL}/tariff-definitions/modified/${id}`
+      : `${API_BASE_URL}/tariff-definitions/user/${id}`
+
+    return fetch(endpoint, {
+      method: "DELETE",
+      headers: createAuthHeaders(token),
+      credentials: 'include'
+    })
+  }
+
+  const reloadModifiedTariffs = async () => {
+    const token = await getAuthToken()
+    const modifiedRes = await fetch(`${API_BASE_URL}/tariff-definitions/modified`, {
+      headers: createAuthHeaders(token),
+      credentials: 'include'
+    })
+    
+    if (modifiedRes.ok) {
+      const modifiedData: TariffDefinitionsResponse = await modifiedRes.json()
+      if (modifiedData.success && modifiedData.data) {
+        setModifiedGlobalTariffs(modifiedData.data)
+      }
+    }
+  }
+
   const handleDeleteTariff = async (id: string, isModifiedGlobal: boolean) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-
-      const endpoint = isModifiedGlobal 
-        ? `http://localhost:8080/api/tariff-definitions/modified/${id}`
-        : `http://localhost:8080/api/tariff-definitions/user/${id}`
-
-      const res = await fetch(endpoint, {
-        method: "DELETE",
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      })
+      const res = await deleteTariffFromBackend(id, isModifiedGlobal)
 
       if (!res.ok) throw new Error(`Delete failed ${res.status}`)
 
       if (isModifiedGlobal) {
-        // Reload modified tariffs from backend
-        const modifiedRes = await fetch("http://localhost:8080/api/tariff-definitions/modified", {
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        })
-        if (modifiedRes.ok) {
-          const modifiedData: TariffDefinitionsResponse = await modifiedRes.json()
-          if (modifiedData.success && modifiedData.data) {
-            setModifiedGlobalTariffs(modifiedData.data)
-          }
-        }
+        await reloadModifiedTariffs()
         showAlert("Deleted", "Modified global tariff has been successfully deleted.")
       } else {
-        // Reload user tariffs from backend
-        const userRes = await fetch("http://localhost:8080/api/tariff-definitions/user", {
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        })
-        if (userRes.ok) {
-          const userData: TariffDefinitionsResponse = await userRes.json()
-          if (userData.success && userData.data) {
-            setUserTariffs(userData.data)
-          }
-        }
+        await reloadUserTariffs()
         showAlert("Deleted", "User-defined tariff has been successfully deleted.")
       }
     } catch (e) {
@@ -441,33 +483,69 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
   }
 
   const handleExportCSV = () => {
-    // Backend will handle CSV export
-    window.location.href = 'http://localhost:8080/api/tariff-definitions/export'
+    window.location.href = `${API_BASE_URL}/tariff-definitions/export`
+  }
+
+  const matchesProductFilter = (tariff: TariffDefinition): boolean => {
+    return !filters.product || tariff.product === filters.product
+  }
+
+  const matchesExportingFilter = (tariff: TariffDefinition): boolean => {
+    return !filters.exportingFrom || tariff.exportingFrom === filters.exportingFrom
+  }
+
+  const matchesImportingFilter = (tariff: TariffDefinition): boolean => {
+    return !filters.importingTo || tariff.importingTo === filters.importingTo
   }
 
   const getFilteredTariffs = (tariffs: TariffDefinition[]) => {
     return tariffs.filter((tariff) => {
-      const matchesProduct = !filters.product || tariff.product === filters.product
-      const matchesExporting = !filters.exportingFrom || tariff.exportingFrom === filters.exportingFrom
-      const matchesImporting = !filters.importingTo || tariff.importingTo === filters.importingTo
-
-      return matchesProduct && matchesExporting && matchesImporting
+      return matchesProductFilter(tariff) && 
+             matchesExportingFilter(tariff) && 
+             matchesImportingFilter(tariff)
     })
   }
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters((prev) => ({
       ...prev,
-      [field]: value === "all" ? "" : value,
+      [field]: value === FILTER_ALL_VALUE ? "" : value,
     }))
   }
 
   const clearFilters = () => {
-    setFilters({
-      product: "",
-      exportingFrom: "",
-      importingTo: "",
-    })
+    setFilters(createInitialFilters())
+  }
+
+  const getBadgeVariant = (type: string): "default" | "secondary" => {
+    return type === TARIFF_TYPE_AHS ? "default" : "secondary"
+  }
+
+  const getBadgeClassName = (type: string): string => {
+    return type === TARIFF_TYPE_AHS ? "bg-accent/20 text-accent-foreground" : ""
+  }
+
+  const canManageTariffs = (): boolean => {
+    return simulatorMode || isAdminRole()
+  }
+
+  const getDialogTitle = (): string => {
+    return simulatorMode ? "Define Simulated Tariff" : "Define/Edit Global Tariff"
+  }
+
+  const getDialogDescription = (): string => {
+    if (simulatorMode) {
+      return "Create a temporary tariff for simulation purposes. This will not affect global tariffs."
+    }
+    return "Add or update a global tariff in the system. If a tariff already exists for the same product and country pair, it will be replaced."
+  }
+
+  const getAddButtonText = (): string => {
+    return simulatorMode ? "Define Simulated Tariff" : "Define/Edit Global Tariff"
+  }
+
+  const getSubmitButtonText = (): string => {
+    return simulatorMode ? "Add Simulated Tariff" : "Save Global Tariff"
   }
 
   const renderTariffTable = (
@@ -512,8 +590,8 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                     <td className="py-3 px-4 text-muted-foreground">{tariff.importingTo}</td>
                     <td className="py-3 px-4">
                       <Badge
-                        variant={tariff.type === "AHS" ? "default" : "secondary"}
-                        className={tariff.type === "AHS" ? "bg-accent/20 text-accent-foreground" : ""}
+                        variant={getBadgeVariant(tariff.type)}
+                        className={getBadgeClassName(tariff.type)}
                       >
                         {tariff.type}
                       </Badge>
@@ -555,6 +633,31 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
     )
   }
 
+  const mergeTariffs = (): TariffDefinition[] => {
+    const mergedGlobalTariffs = [...globalTariffs]
+    modifiedGlobalTariffs.forEach((modifiedTariff) => {
+      const existingIndex = mergedGlobalTariffs.findIndex(
+        (t) =>
+          t.product === modifiedTariff.product &&
+          t.exportingFrom === modifiedTariff.exportingFrom &&
+          t.importingTo === modifiedTariff.importingTo,
+      )
+      if (existingIndex !== -1) {
+        mergedGlobalTariffs[existingIndex] = modifiedTariff
+      } else {
+        mergedGlobalTariffs.push(modifiedTariff)
+      }
+    })
+    return mergedGlobalTariffs
+  }
+
+  const getGlobalTariffsDescription = (): string => {
+    if (isAdminRole()) {
+      return "System tariffs that can be edited by administrators. Modified tariffs are highlighted."
+    }
+    return "Standard tariffs from the global database."
+  }
+
   if (isLoading) {
     return (
       <Card>
@@ -565,21 +668,7 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
     )
   }
 
-  // Merge modified global tariffs into global tariffs for display
-  const mergedGlobalTariffs = [...globalTariffs]
-  modifiedGlobalTariffs.forEach((modifiedTariff) => {
-    const existingIndex = mergedGlobalTariffs.findIndex(
-      (t) =>
-        t.product === modifiedTariff.product &&
-        t.exportingFrom === modifiedTariff.exportingFrom &&
-        t.importingTo === modifiedTariff.importingTo,
-    )
-    if (existingIndex !== -1) {
-      mergedGlobalTariffs[existingIndex] = modifiedTariff
-    } else {
-      mergedGlobalTariffs.push(modifiedTariff)
-    }
-  })
+  const mergedGlobalTariffs = mergeTariffs()
 
   return (
     <div>
@@ -590,7 +679,7 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
             <AlertDialogDescription>{alertDialog.message}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setAlertDialog({ ...alertDialog, open: false })}>
+            <AlertDialogAction onClick={closeAlert}>
               OK
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -603,23 +692,21 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          {(simulatorMode || userRole === "admin") && (
+          {canManageTariffs() && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" size="sm">
                   <Plus className="h-4 w-4 mr-2" />
-                  {simulatorMode ? "Define Simulated Tariff" : "Define/Edit Global Tariff"}
+                  {getAddButtonText()}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>
-                    {simulatorMode ? "Define Simulated Tariff" : "Define/Edit Global Tariff"}
+                    {getDialogTitle()}
                   </DialogTitle>
                   <DialogDescription>
-                    {simulatorMode
-                      ? "Create a temporary tariff for simulation purposes. This will not affect global tariffs."
-                      : "Add or update a global tariff in the system. If a tariff already exists for the same product and country pair, it will be replaced."}
+                    {getDialogDescription()}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
@@ -687,8 +774,8 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                         <SelectValue placeholder="Select tariff type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="AHS">AHS (Harmonized System)</SelectItem>
-                        <SelectItem value="MFN">MFN (Most Favored Nation)</SelectItem>
+                        <SelectItem value={TARIFF_TYPE_AHS}>AHS (Harmonized System)</SelectItem>
+                        <SelectItem value={TARIFF_TYPE_MFN}>MFN (Most Favored Nation)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -698,7 +785,7 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                       id="rate"
                       type="number"
                       step="0.01"
-                      min="0"
+                      min={MINIMUM_RATE}
                       placeholder="e.g., 5.25"
                       value={newTariff.rate}
                       onChange={(e) => setNewTariff((prev) => ({ ...prev, rate: e.target.value }))}
@@ -729,7 +816,7 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                     Cancel
                   </Button>
                   <Button type="submit" onClick={handleAddTariff}>
-                    {simulatorMode ? "Add Simulated Tariff" : "Save Global Tariff"}
+                    {getSubmitButtonText()}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -890,12 +977,12 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Product</Label>
-              <Select value={filters.product || "all"} onValueChange={(value) => handleFilterChange("product", value)}>
+              <Select value={filters.product || FILTER_ALL_VALUE} onValueChange={(value) => handleFilterChange("product", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="All products" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Products</SelectItem>
+                  <SelectItem value={FILTER_ALL_VALUE}>All Products</SelectItem>
                   {products.map((product) => (
                     <SelectItem key={product} value={product}>
                       {product}
@@ -907,14 +994,14 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
             <div className="space-y-2">
               <Label>Exporting From</Label>
               <Select
-                value={filters.exportingFrom || "all"}
+                value={filters.exportingFrom || FILTER_ALL_VALUE}
                 onValueChange={(value) => handleFilterChange("exportingFrom", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All countries" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Countries</SelectItem>
+                  <SelectItem value={FILTER_ALL_VALUE}>All Countries</SelectItem>
                   {countries.map((country) => (
                     <SelectItem key={country} value={country}>
                       {country}
@@ -926,14 +1013,14 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
             <div className="space-y-2">
               <Label>Importing To</Label>
               <Select
-                value={filters.importingTo || "all"}
+                value={filters.importingTo || FILTER_ALL_VALUE}
                 onValueChange={(value) => handleFilterChange("importingTo", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All countries" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Countries</SelectItem>
+                  <SelectItem value={FILTER_ALL_VALUE}>All Countries</SelectItem>
                   {countries.map((country) => (
                     <SelectItem key={country} value={country}>
                       {country}
@@ -977,10 +1064,8 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
           {renderTariffTable(
             mergedGlobalTariffs,
             "Global Tariffs",
-            userRole === "admin"
-              ? "System tariffs that can be edited by administrators. Modified tariffs are highlighted."
-              : "Standard tariffs from the global database.",
-            userRole === "admin",
+            getGlobalTariffsDescription(),
+            isAdminRole(),
             false,
           )}
         </>

@@ -57,6 +57,7 @@ services:
       - SERVICES_TARIFF_CALCULATOR_URL=http://tariff-calculator:8081
       - SERVICES_SESSION_MANAGEMENT_URL=http://session-management:8082
       - SERVICES_CSV_EXPORT_URL=http://csv-export:8085
+      - SERVICES_TRADE_INSIGHTS_URL=http://trade-insights:8088
     depends_on:
       redis:
         condition: service_healthy
@@ -71,6 +72,8 @@ services:
       session-management:
         condition: service_started
       csv-export:
+        condition: service_started
+      trade-insights:
         condition: service_started
     networks:
       - microservices-network
@@ -113,6 +116,23 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+  # Trade Insights (Port 8088)
+  trade-insights:
+    build:
+      context: ./trade-insights
+      dockerfile: Dockerfile
+    ports:
+      - "8088:8088"
+    environment:
+      - SPRING_DATASOURCE_URL=${SUPABASE_DATABASE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SUPABASE_DATABASE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DATABASE_PASSWORD}
+      - NEWS_API_KEY=${NEWS_API_KEY:-}
+      - GUARDIAN_API_KEY=${GUARDIAN_API_KEY:-}
     networks:
       - microservices-network
     restart: unless-stopped
@@ -211,6 +231,9 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DATABASE_PASSWORD}
     networks:
       - microservices-network
+    volumes:
+      - ./wits-api-integration/src/main/resources/application.properties:/app/application.properties
+
     restart: unless-stopped
 
 volumes:

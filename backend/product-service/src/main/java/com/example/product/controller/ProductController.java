@@ -3,7 +3,11 @@ package com.example.product.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.example.product.dto.BrandInfo;
 import com.example.product.service.ProductService;
@@ -13,7 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 // routes product/country/brand lookups for the product catalogue
 @RestController
-@Tag(name = "Product Catalog", description = "API endpoints for products, brands, and countries")
+@Tag(name = "Product Catalog", description = "API endpoints for products and countries")
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 public class ProductController {
