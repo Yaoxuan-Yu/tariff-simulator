@@ -11,9 +11,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+// service for aggregating and processing news articles from multiple sources
 @Slf4j
 @Service
 public class NewsService {
+
+    private static final int DEFAULT_LIMIT = 10;
+    private static final int DEFAULT_OFFSET = 0;
+    private static final double DEFAULT_RELEVANCE_SCORE = 0.95;
 
     private final NewsApiClient newsApiClient;
 
@@ -21,11 +26,12 @@ public class NewsService {
         this.newsApiClient = newsApiClient;
     }
 
+    // search for news articles across multiple sources with pagination
     public NewsSearchResultDto searchNews(String query, String country, String product,
                                           Integer limit, Integer offset) {
         String searchString = buildSearchQuery(query, country, product);
-        int resolvedLimit = limit != null && limit > 0 ? limit : 10;
-        int resolvedOffset = offset != null && offset >= 0 ? offset : 0;
+        int resolvedLimit = limit != null && limit > 0 ? limit : DEFAULT_LIMIT;
+        int resolvedOffset = offset != null && offset >= 0 ? offset : DEFAULT_OFFSET;
 
         List<NewsApiClient.NewsArticle> articles = new ArrayList<>();
         articles.addAll(newsApiClient.fetchFromNewsAPI(searchString));
@@ -50,6 +56,7 @@ public class NewsService {
         );
     }
 
+    // build combined search query from query, country, and product
     private String buildSearchQuery(String query, String country, String product) {
         StringBuilder sb = new StringBuilder(query == null ? "" : query.trim());
         if (country != null && !country.isBlank()) {
@@ -61,6 +68,7 @@ public class NewsService {
         return sb.toString().trim();
     }
 
+    // remove duplicate articles based on external ID
     private List<NewsApiClient.NewsArticle> deduplicateArticles(List<NewsApiClient.NewsArticle> articles) {
         Map<String, NewsApiClient.NewsArticle> deduped = new LinkedHashMap<>();
         for (NewsApiClient.NewsArticle article : articles) {
@@ -71,6 +79,7 @@ public class NewsService {
         return new ArrayList<>(deduped.values());
     }
 
+    // convert internal news article to DTO for API response
     private NewsArticleDto convertToDto(NewsApiClient.NewsArticle article) {
         NewsArticleDto dto = new NewsArticleDto();
         dto.setId(article.getExternalId());
@@ -82,7 +91,7 @@ public class NewsService {
         dto.setArticleUrl(article.getArticleUrl());
         dto.setImageUrl(article.getImageUrl());
         dto.setPublishedDate(article.getPublishedDate());
-        dto.setRelevanceScore(0.95);
+        dto.setRelevanceScore(DEFAULT_RELEVANCE_SCORE);
         return dto;
     }
 }

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.Map;
 
+// routes agreement search requests to agreement service
 @Slf4j
 @RestController
 @Validated
@@ -28,6 +29,8 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 @RequestMapping("/api/agreements")
 public class AgreementController {
+
+    private static final String ANONYMOUS_USER = "anonymous";
 
     private final AgreementService agreementService;
     private final QueryLoggerService queryLoggerService;
@@ -37,6 +40,7 @@ public class AgreementController {
         this.queryLoggerService = queryLoggerService;
     }
 
+    // POST /api/agreements/search -> search for trade agreements by country
     @Operation(summary = "Search for trade agreements by country")
     @PostMapping("/search")
     public ResponseEntity<AgreementSearchResultDto> searchAgreements(
@@ -47,28 +51,23 @@ public class AgreementController {
             return ResponseEntity.badRequest().build();
         }
 
-        try {
-            String userId = authentication != null ? authentication.getName() : "anonymous";
+        String userId = authentication != null ? authentication.getName() : ANONYMOUS_USER;
 
-            Map<String, String> filters = new HashMap<>();
-            filters.put("country", request.getCountry());
-            if (request.getAgreementType() != null) {
-                filters.put("agreementType", request.getAgreementType());
-            }
-
-            queryLoggerService.logSearch(userId, SearchType.AGREEMENTS, filters);
-
-            AgreementSearchResultDto response = agreementService.searchAgreements(
-                request.getCountry(),
-                request.getAgreementType(),
-                request.getLimit(),
-                request.getOffset()
-            );
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Failed to search agreements", e);
-            return ResponseEntity.internalServerError().build();
+        Map<String, String> filters = new HashMap<>();
+        filters.put("country", request.getCountry());
+        if (request.getAgreementType() != null) {
+            filters.put("agreementType", request.getAgreementType());
         }
+
+        queryLoggerService.logSearch(userId, SearchType.AGREEMENTS, filters);
+
+        AgreementSearchResultDto response = agreementService.searchAgreements(
+            request.getCountry(),
+            request.getAgreementType(),
+            request.getLimit(),
+            request.getOffset()
+        );
+
+        return ResponseEntity.ok(response);
     }
 }

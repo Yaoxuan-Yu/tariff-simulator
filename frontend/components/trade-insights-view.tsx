@@ -177,8 +177,38 @@ export function TradeInsightsView({ apiBaseUrl, getAuthToken }: TradeInsightsVie
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Request failed");
+        let errorMessage = "Request failed";
+        try {
+          const text = await response.text();
+          if (text) {
+            // Try to parse as JSON to extract a user-friendly message
+            try {
+              const errorJson = JSON.parse(text);
+              // Extract a user-friendly message from the error response
+              if (errorJson.message) {
+                errorMessage = errorJson.message;
+              } else if (errorJson.details?.error) {
+                // Extract a cleaner message from nested error details
+                const detailsError = errorJson.details.error;
+                if (detailsError.includes("relation") && detailsError.includes("does not exist")) {
+                  errorMessage = "Database table not available. Please contact support.";
+                } else if (detailsError.includes("Database operation failed")) {
+                  errorMessage = "Unable to access database. Please try again later.";
+                } else {
+                  errorMessage = detailsError;
+                }
+              } else if (errorJson.error) {
+                errorMessage = errorJson.error;
+              }
+            } catch {
+              // If JSON parsing fails, use the text as-is but clean it up
+              errorMessage = text.length > 200 ? text.substring(0, 200) + "..." : text;
+            }
+          }
+        } catch {
+          errorMessage = `Server error (${response.status})`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -521,7 +551,32 @@ export function TradeInsightsView({ apiBaseUrl, getAuthToken }: TradeInsightsVie
             </Button>
           </div>
 
-          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+          {error && (
+            <div className="mt-4 rounded-md bg-red-50 border border-red-200 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-red-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error</h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>{error}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

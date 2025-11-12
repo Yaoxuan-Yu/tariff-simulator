@@ -18,11 +18,16 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpSession;
 
+// routes tariff calculation requests
 @RestController
 @Tag(name = "Tariff Calculation", description = "API endpoints for tariff calculations")
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 public class TariffCalculationController {
+    
+    private static final String USER_MODE = "user";
+    private static final double MIN_QUANTITY = 0.0;
+
     private final TariffService tariffService;
     private final SessionManagementClient sessionManagementClient;
 
@@ -33,6 +38,7 @@ public class TariffCalculationController {
         this.sessionManagementClient = sessionManagementClient;
     }
 
+    // GET /api/tariff -> calculate tariff rates for importing products
     @Operation(summary = "Calculate tariff rates for importing products between countries")
     @GetMapping("/tariff")
     public ResponseEntity<TariffResponse> calculateTariff(
@@ -56,7 +62,7 @@ public class TariffCalculationController {
         if (importingTo == null || importingTo.trim().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("Importing country is required");
         }
-        if (quantity <= 0) {
+        if (quantity <= MIN_QUANTITY) {
             throw new com.example.calculator.exception.BadRequestException("Quantity must be greater than 0");
         }
         if (customCost != null && !customCost.trim().isEmpty()) {
@@ -71,8 +77,8 @@ public class TariffCalculationController {
         }
 
         TariffResponse response;
-        if (mode != null && mode.equalsIgnoreCase("user")) {
-            // For simulator mode, call TariffService directly with session to use session-based tariffs
+        if (mode != null && mode.equalsIgnoreCase(USER_MODE)) {
+            // for simulator mode, use session-based tariffs
             response = tariffService.calculateWithMode(
                 product,
                 exportingFrom,
@@ -80,11 +86,12 @@ public class TariffCalculationController {
                 quantity,
                 customCost,
                 currency,
-                "user",
+                USER_MODE,
                 userTariffId,
                 session
             );
         } else {
+            // default: global mode using database tariffs
             response = tariffService.calculate(
                 product,
                 exportingFrom,
@@ -95,10 +102,10 @@ public class TariffCalculationController {
             );
         }
 
-        // SAVE TO SESSION HISTORY via HTTP call to session-management service
+        // save to session history via HTTP call to session-management service
         if (response.isSuccess() && response.getData() != null) {
             try {
-                // Convert TariffResponse to Map for HTTP call
+                // convert TariffResponse to Map for HTTP call
                 Map<String, Object> calculationData = new HashMap<>();
                 calculationData.put("success", true);
 
@@ -117,8 +124,8 @@ public class TariffCalculationController {
 
                 calculationData.put("data", dataMap);
 
-                // Call session-management service via HTTP
-                // Note: In distributed sessions, session ID is passed via header
+                // call session-management service via HTTP
+                // note: in distributed sessions, session ID is passed via header
                 sessionManagementClient.saveCalculation(session.getId(), calculationData);
             } catch (Exception e) {
                 System.err.println("Failed to save calculation to session history: " + e.getMessage());

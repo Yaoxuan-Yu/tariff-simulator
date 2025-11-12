@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -14,9 +13,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+// client for fetching news articles from external news APIs (NewsAPI and Guardian)
 @Slf4j
 @Service
 public class NewsApiClient {
+
+    private static final String NEWS_API_BASE_URL = "https://newsapi.org/v2/everything";
+    private static final String GUARDIAN_API_BASE_URL = "https://content.guardianapis.com/search";
+    private static final String NEWS_API_PREFIX = "newsapi-";
+    private static final String GUARDIAN_API_PREFIX = "guardian-";
+    private static final String GUARDIAN_SOURCE_NAME = "The Guardian";
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -32,6 +38,7 @@ public class NewsApiClient {
         this.objectMapper = objectMapper;
     }
 
+    // fetch news articles from NewsAPI
     public List<NewsArticle> fetchFromNewsAPI(String query) {
         if (newsApiKey == null || newsApiKey.isBlank()) {
             log.warn("Skipping NewsAPI fetch because news.api.key is not configured");
@@ -40,7 +47,7 @@ public class NewsApiClient {
 
         try {
             String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
-            String url = "https://newsapi.org/v2/everything?q=" + encodedQuery
+            String url = NEWS_API_BASE_URL + "?q=" + encodedQuery
                 + "&sortBy=relevancy&language=en&apiKey=" + newsApiKey;
 
             String response = restTemplate.getForObject(url, String.class);
@@ -54,7 +61,7 @@ public class NewsApiClient {
             if (root.has("articles")) {
                 root.get("articles").forEach(article -> {
                     NewsArticle na = new NewsArticle();
-                    na.setExternalId("newsapi-" + article.path("url").asText());
+                    na.setExternalId(NEWS_API_PREFIX + article.path("url").asText());
                     na.setTitle(article.path("title").asText(null));
                     na.setSummary(article.path("description").asText(null));
                     na.setContent(article.path("content").asText(null));
@@ -77,6 +84,7 @@ public class NewsApiClient {
         }
     }
 
+    // fetch news articles from Guardian API
     public List<NewsArticle> fetchFromGuardianAPI(String query) {
         if (guardianApiKey == null || guardianApiKey.isBlank()) {
             log.warn("Skipping Guardian API fetch because guardian.api.key is not configured");
@@ -85,7 +93,7 @@ public class NewsApiClient {
 
         try {
             String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
-            String url = "https://content.guardianapis.com/search?q=" + encodedQuery
+            String url = GUARDIAN_API_BASE_URL + "?q=" + encodedQuery
                 + "&show-fields=trailText,body&api-key=" + guardianApiKey;
 
             String response = restTemplate.getForObject(url, String.class);
@@ -99,11 +107,11 @@ public class NewsApiClient {
             if (root.has("response") && root.get("response").has("results")) {
                 root.get("response").get("results").forEach(article -> {
                     NewsArticle na = new NewsArticle();
-                    na.setExternalId("guardian-" + article.path("id").asText());
+                    na.setExternalId(GUARDIAN_API_PREFIX + article.path("id").asText());
                     na.setTitle(article.path("webTitle").asText(null));
                     na.setSummary(article.path("fields").path("trailText").asText(null));
                     na.setContent(article.path("fields").path("body").asText(null));
-                    na.setSource("The Guardian");
+                    na.setSource(GUARDIAN_SOURCE_NAME);
                     na.setArticleUrl(article.path("webUrl").asText(null));
                     na.setPublishedDate(article.path("webPublicationDate").asText(null));
                     articles.add(na);

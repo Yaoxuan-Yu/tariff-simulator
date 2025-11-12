@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.Map;
 
+// routes trade insights aggregation requests (news + agreements)
 @Slf4j
 @RestController
 @Validated
@@ -28,6 +29,9 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 @RequestMapping("/api/trade-insights")
 public class TradeInsightsController {
+
+    private static final String ANONYMOUS_USER = "anonymous";
+    private static final int MIN_QUERY_LENGTH = 1;
 
     private final TradeInsightsService tradeInsightsService;
     private final QueryLoggerService queryLoggerService;
@@ -40,41 +44,37 @@ public class TradeInsightsController {
         this.queryLoggerService = queryLoggerService;
     }
 
+    // POST /api/trade-insights/search -> get combined news and agreements
     @Operation(summary = "Get combined trade insights (news + agreements)")
     @PostMapping("/search")
     public ResponseEntity<TradeInsightsDto> getTradeInsights(
         @Valid @RequestBody TradeInsightsRequest request,
         Authentication authentication
     ) {
-        if (request.getQuery() == null || request.getQuery().trim().isEmpty()) {
+        if (request.getQuery() == null || request.getQuery().trim().length() < MIN_QUERY_LENGTH) {
             return ResponseEntity.badRequest().build();
         }
 
-        try {
-            String userId = authentication != null ? authentication.getName() : "anonymous";
-            Map<String, String> filters = new HashMap<>();
-            filters.put("query", request.getQuery());
-            if (request.getCountry() != null) {
-                filters.put("country", request.getCountry());
-            }
-            if (request.getProduct() != null) {
-                filters.put("product", request.getProduct());
-            }
-
-            queryLoggerService.logSearch(userId, SearchType.COMBINED, filters);
-
-            TradeInsightsDto response = tradeInsightsService.getTradeInsights(
-                request.getQuery(),
-                request.getCountry(),
-                request.getProduct(),
-                request.getLimit()
-            );
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Failed to aggregate trade insights", e);
-            return ResponseEntity.internalServerError().build();
+        String userId = authentication != null ? authentication.getName() : ANONYMOUS_USER;
+        Map<String, String> filters = new HashMap<>();
+        filters.put("query", request.getQuery());
+        if (request.getCountry() != null) {
+            filters.put("country", request.getCountry());
         }
+        if (request.getProduct() != null) {
+            filters.put("product", request.getProduct());
+        }
+
+        queryLoggerService.logSearch(userId, SearchType.COMBINED, filters);
+
+        TradeInsightsDto response = tradeInsightsService.getTradeInsights(
+            request.getQuery(),
+            request.getCountry(),
+            request.getProduct(),
+            request.getLimit()
+        );
+
+        return ResponseEntity.ok(response);
     }
 }
 

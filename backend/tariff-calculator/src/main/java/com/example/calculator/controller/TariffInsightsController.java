@@ -28,11 +28,15 @@ import com.example.calculator.service.TariffService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+// routes tariff insights requests (comparison, history, trends, currencies)
 @RestController
 @Tag(name = "Tariff Insights", description = "Comparison, history, and currency endpoints")
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 public class TariffInsightsController {
+    
+    private static final double MIN_QUANTITY = 0.0;
+    private static final String CSV_SEPARATOR = ",";
 
     private final TariffService tariffService;
     private final TariffComparisonService comparisonService;
@@ -47,6 +51,7 @@ public class TariffInsightsController {
         this.currencyService = currencyService;
     }
 
+    // POST /api/tariffs/compare -> compare tariffs across multiple importing countries
     @Operation(summary = "Compare tariffs across multiple importing countries for the same product")
     @PostMapping("/tariffs/compare")
     public ResponseEntity<TariffComparisonDTO> compareMultipleCountries(
@@ -64,7 +69,7 @@ public class TariffInsightsController {
         if (request.getImportingToCountries() == null || request.getImportingToCountries().isEmpty()) {
             throw new com.example.calculator.exception.BadRequestException("At least one importing country is required");
         }
-        if (request.getQuantity() <= 0) {
+        if (request.getQuantity() <= MIN_QUANTITY) {
             throw new com.example.calculator.exception.BadRequestException("Quantity must be greater than 0");
         }
 
@@ -80,6 +85,7 @@ public class TariffInsightsController {
         return ResponseEntity.ok(response);
     }
 
+    // GET /api/tariffs/history -> get tariff rate history over time period
     @Operation(summary = "Get tariff rate history over a time period (currently using dummy data)")
     @GetMapping("/tariffs/history")
     public ResponseEntity<TariffHistoryDTO> getTariffHistory(
@@ -110,6 +116,7 @@ public class TariffInsightsController {
         return ResponseEntity.ok(response);
     }
 
+    // GET /api/tariff-trends -> get tariff trends for multiple countries/products
     @GetMapping("/tariff-trends")
     public ResponseEntity<Map<String, Object>> getTariffTrends(
             @RequestParam String importCountries,
@@ -146,6 +153,7 @@ public class TariffInsightsController {
         }
     }
 
+    // GET /api/tariffs/currencies -> get list of supported currencies with rates
     @Operation(summary = "Get list of supported currencies with rates")
     @GetMapping("/tariffs/currencies")
     public ResponseEntity<Map<String, List<Map<String, Object>>>> getSupportedCurrencies() {
@@ -181,6 +189,7 @@ public class TariffInsightsController {
         return ResponseEntity.ok(Map.of("currency", currencyList));
     }
 
+    // GET /api/tariffs/exchange-rate/{currency} -> get current exchange rate
     @Operation(summary = "Get current exchange rate for a currency")
     @GetMapping("/tariffs/exchange-rate/{currency}")
     public ResponseEntity<Map<String, Object>> getExchangeRate(@PathVariable String currency) {
@@ -195,6 +204,7 @@ public class TariffInsightsController {
         return ResponseEntity.ok(response);
     }
 
+    // GET /api/tariffs -> get all tariffs with optional currency conversion
     @Operation(summary = "Get all tariffs with optional currency conversion")
     @GetMapping("/tariffs")
     public ResponseEntity<List<TariffDTO>> getAllTariffs(
@@ -205,6 +215,7 @@ public class TariffInsightsController {
         return ResponseEntity.ok(tariffs);
     }
 
+    // GET /api/tariffs/country/{country} -> get tariffs by importing country
     @Operation(summary = "Get tariffs by country with tariff amounts in selected currency")
     @GetMapping("/tariffs/country/{country}")
     public ResponseEntity<List<TariffDTO>> getTariffsByCountry(
@@ -216,6 +227,7 @@ public class TariffInsightsController {
         return ResponseEntity.ok(tariffs);
     }
 
+    // GET /api/tariffs/{country}/{partner} -> get specific tariff by country and partner
     @Operation(summary = "Get specific tariff by country and partner")
     @GetMapping("/tariffs/{country}/{partner}")
     public ResponseEntity<TariffDTO> getTariffByCountryAndPartner(
@@ -234,11 +246,12 @@ public class TariffInsightsController {
 
     }
 
+    // parse comma-separated values into list
     private List<String> parseCsv(String value) {
         if (value == null || value.trim().isEmpty()) {
             return List.of();
         }
-        return Arrays.stream(value.split(","))
+        return Arrays.stream(value.split(CSV_SEPARATOR))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();

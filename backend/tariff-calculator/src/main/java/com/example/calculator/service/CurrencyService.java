@@ -5,28 +5,33 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-/**
- * Service for handling currency conversions with caching and fallback
- */
+// service for handling currency conversions with caching and fallback
 @Service
 public class CurrencyService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private static final String DEFAULT_CURRENCY = "USD";
+    private static final double DEFAULT_RATE = 1.0;
+    private static final Duration CACHE_DURATION = Duration.ofHours(1);
+    private static final String DEFAULT_API_KEY = "a10e795b9ec46cfbbd874b19";
+    private static final String API_BASE_URL = "https://v6.exchangerate-api.com/v6/";
 
-    private static final String API_URL = "https://v6.exchangerate-api.com/v6/a10e795b9ec46cfbbd874b19/latest/USD";
+    private final RestTemplate restTemplate;
 
-    // Cache for exchange rates
+    @Value("${exchange.rate.api.key:" + DEFAULT_API_KEY + "}")
+    private String apiKey;
+
+    // cache for exchange rates
     private Map<String, Double> cachedRates = new HashMap<>();
     private LocalDateTime lastUpdated;
-    private static final Duration CACHE_DURATION = Duration.ofHours(1);
 
-    // Fallback rates in case API fails (as of Jan 2025)
+    // fallback rates in case API fails (as of Jan 2025)
     private static final Map<String, Double> FALLBACK_RATES = Map.of(
             "USD", 1.0,
             "AUD", 1.52,
@@ -40,12 +45,14 @@ public class CurrencyService {
             "VND", 24350.0
     );
 
-    /**
-     * Get exchange rate from USD to target currency
-     */
+    public CurrencyService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    // get exchange rate from USD to target currency
     public double getExchangeRate(String targetCurrency) {
-        if (targetCurrency == null || targetCurrency.equals("USD")) {
-            return 1.0;
+        if (targetCurrency == null || targetCurrency.equals(DEFAULT_CURRENCY)) {
+            return DEFAULT_RATE;
         }
 
         // Check if cache is valid
@@ -71,13 +78,11 @@ public class CurrencyService {
             System.err.println("Failed to fetch real-time rates: " + e.getMessage());
         }
 
-        // Fallback to static rates
-        return FALLBACK_RATES.getOrDefault(targetCurrency.toUpperCase(), 1.0);
+        // fallback to static rates
+        return FALLBACK_RATES.getOrDefault(targetCurrency.toUpperCase(), DEFAULT_RATE);
     }
 
-    /**
-     * Convert amount from USD to target currency
-     */
+    // convert amount from USD to target currency
     public double convertFromUSD(double amountInUSD, String targetCurrency) {
         if (amountInUSD == 0.0) {
             return 0.0;
@@ -86,9 +91,7 @@ public class CurrencyService {
         return amountInUSD * rate;
     }
 
-    /**
-     * Check if cached rates are still valid
-     */
+    // check if cached rates are still valid
     private boolean isCacheValid() {
         if (lastUpdated == null || cachedRates.isEmpty()) {
             return false;
@@ -96,12 +99,11 @@ public class CurrencyService {
         return Duration.between(lastUpdated, LocalDateTime.now()).compareTo(CACHE_DURATION) < 0;
     }
 
-    /**
-     * Fetch real-time exchange rates from external API
-     */
+    // fetch real-time exchange rates from external API
     private Map<String, Double> fetchRealTimeRates() {
         try {
-            ExchangeRateResponse response = restTemplate.getForObject(API_URL, ExchangeRateResponse.class);
+            String apiUrl = API_BASE_URL + apiKey + "/latest/USD";
+            ExchangeRateResponse response = restTemplate.getForObject(apiUrl, ExchangeRateResponse.class);
 
             if (response != null && "success".equals(response.getResult())) {
                 System.out.println("Successfully fetched real-time exchange rates");
@@ -117,9 +119,7 @@ public class CurrencyService {
         }
     }
 
-    /**
-     * Get all supported currencies with current rates and last updated time
-     */
+    // get all supported currencies with current rates and last updated time
     public Map<String, Object> getSupportedCurrencies() {
         Map<String, Object> result = new HashMap<>();
 
@@ -157,9 +157,7 @@ public class CurrencyService {
         return result;
     }
 
-    /**
-     * Response class for ExchangeRate-API
-     */
+    // response class for ExchangeRate-API
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class ExchangeRateResponse {
 

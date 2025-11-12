@@ -7,26 +7,25 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
-/**
- * Minimal security configuration for Simulator Tariffs Service.
- * API Gateway handles JWT validation and authentication.
- * This service trusts requests from the Gateway and only enforces endpoint-level authorization.
- */
+// overall spring security config for the simulator-tariffs service
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+    // main security config - uses sessions for user-defined tariffs, public access to all endpoints
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // disable CSRF tokens (API Gateway handles security)
                 .csrf(csrf -> csrf.disable())
+                // use IF_REQUIRED for session-based tariff storage (simulator mode)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
-                        // Trust requests from API Gateway (internal service-to-service)
+                        // trust requests from API Gateway (internal service-to-service)
                         .requestMatchers("/api/**").permitAll()
                         .anyRequest().permitAll()
                 )

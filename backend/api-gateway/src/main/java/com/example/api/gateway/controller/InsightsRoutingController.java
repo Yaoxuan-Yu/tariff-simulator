@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+// routes trade insights requests to trade-insights service
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
@@ -24,6 +25,7 @@ public class InsightsRoutingController {
         this.routingService = routingService;
     }
 
+    // POST /api/news/search -> search for trade-related news articles
     @PostMapping("/news/search")
     public ResponseEntity<?> searchNews(
         @RequestBody Map<String, Object> body,
@@ -38,6 +40,7 @@ public class InsightsRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.POST, entity, Object.class);
     }
 
+    // POST /api/agreements/search -> search for trade agreements
     @PostMapping("/agreements/search")
     public ResponseEntity<?> searchAgreements(
         @RequestBody Map<String, Object> body,
@@ -52,6 +55,7 @@ public class InsightsRoutingController {
         return routingService.forwardRequest(targetUrl, HttpMethod.POST, entity, Object.class);
     }
 
+    // POST /api/trade-insights/search -> get combined news and agreements
     @PostMapping("/trade-insights/search")
     public ResponseEntity<?> searchTradeInsights(
         @RequestBody Map<String, Object> body,

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.Map;
 
+// routes news search requests to news service
 @Slf4j
 @RestController
 @Validated
@@ -28,6 +29,9 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 @RequestMapping("/api/news")
 public class NewsController {
+
+    private static final String ANONYMOUS_USER = "anonymous";
+    private static final int MIN_QUERY_LENGTH = 2;
 
     private final NewsService newsService;
     private final QueryLoggerService queryLoggerService;
@@ -37,42 +41,38 @@ public class NewsController {
         this.queryLoggerService = queryLoggerService;
     }
 
+    // POST /api/news/search -> search for trade-related news articles
     @Operation(summary = "Search for trade-related news articles")
     @PostMapping("/search")
     public ResponseEntity<NewsSearchResultDto> searchNews(
         @Valid @RequestBody NewsSearchRequest request,
         Authentication authentication
     ) {
-        if (request.getQuery() == null || request.getQuery().trim().length() < 2) {
+        if (request.getQuery() == null || request.getQuery().trim().length() < MIN_QUERY_LENGTH) {
             return ResponseEntity.badRequest().build();
         }
 
-        try {
-            String userId = authentication != null ? authentication.getName() : "anonymous";
-            Map<String, String> filters = new HashMap<>();
-            filters.put("query", request.getQuery());
-            if (request.getCountry() != null) {
-                filters.put("country", request.getCountry());
-            }
-            if (request.getProduct() != null) {
-                filters.put("product", request.getProduct());
-            }
-
-            queryLoggerService.logSearch(userId, SearchType.NEWS, filters);
-
-            NewsSearchResultDto response = newsService.searchNews(
-                request.getQuery(),
-                request.getCountry(),
-                request.getProduct(),
-                request.getLimit(),
-                request.getOffset()
-            );
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Failed to search news", e);
-            return ResponseEntity.internalServerError().build();
+        String userId = authentication != null ? authentication.getName() : ANONYMOUS_USER;
+        Map<String, String> filters = new HashMap<>();
+        filters.put("query", request.getQuery());
+        if (request.getCountry() != null) {
+            filters.put("country", request.getCountry());
         }
+        if (request.getProduct() != null) {
+            filters.put("product", request.getProduct());
+        }
+
+        queryLoggerService.logSearch(userId, SearchType.NEWS, filters);
+
+        NewsSearchResultDto response = newsService.searchNews(
+            request.getQuery(),
+            request.getCountry(),
+            request.getProduct(),
+            request.getLimit(),
+            request.getOffset()
+        );
+
+        return ResponseEntity.ok(response);
     }
 }
 

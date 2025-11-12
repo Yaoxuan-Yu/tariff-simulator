@@ -1,7 +1,6 @@
 package com.example.calculator.service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,9 +16,28 @@ import com.example.calculator.repository.TariffRepository;
 
 import jakarta.servlet.http.HttpSession;
 
-// Main business logic for tariff calculations and FTA logic
+// main business logic for tariff calculations and FTA logic
 @Service
 public class TariffService {
+    
+    private static final String DEFAULT_CURRENCY = "USD";
+    private static final String USER_MODE = "user";
+    private static final double PERCENTAGE_DIVISOR = 100.0;
+    private static final double DEFAULT_COST = 0.0;
+    private static final String USER_DEFINED_SUFFIX = " (user-defined)";
+    private static final String AHS_WITH_FTA = "AHS (with FTA)";
+    private static final String MFN_NO_FTA = "MFN (no FTA)";
+    private static final String BASE_COST_LABEL = "Product Cost";
+    private static final String BASE_COST_TYPE = "Base Cost";
+    private static final String BASE_COST_PERCENTAGE = "100%";
+    private static final String TARIFF_LABEL_PREFIX = "Import Tariff (";
+    private static final String TARIFF_TYPE = "Tariff";
+    
+    private static final List<String> FTA_COUNTRIES = List.of(
+            "Australia", "China", "Indonesia", "India", "Japan",
+            "Malaysia", "Philippines", "Singapore", "Vietnam"
+    );
+
     private final TariffRepository tariffRepository;
     private final ProductRepository productRepository;
     private final SessionTariffService sessionTariffService;
@@ -36,6 +54,7 @@ public class TariffService {
         this.currencyService = currencyService;
     }
 
+    // calculate tariff with mode support (user-defined or global)
     public TariffResponse calculateWithMode(
             String productName,
             String exportingFrom,
@@ -47,7 +66,7 @@ public class TariffService {
             String userTariffId,
             HttpSession session) {
 
-        if (mode != null && mode.equalsIgnoreCase("user")) {
+        if (mode != null && mode.equalsIgnoreCase(USER_MODE)) {
             List<TariffDefinitionsResponse.TariffDefinitionDto> tariffsToSearch =
                     (session != null) ? sessionTariffService.getTariffDefinitions(session) : new ArrayList<>();
 
@@ -69,24 +88,24 @@ public class TariffService {
                 Double dbCost = selectedProduct.getCost();
                 double unitCost = (customCost != null && !customCost.isEmpty())
                         ? Double.parseDouble(customCost)
-                        : (dbCost != null ? dbCost : 0.0);
+                        : (dbCost != null ? dbCost : DEFAULT_COST);
 
                 double productCostUSD = unitCost * quantity;
                 double tariffRate = selected.getRate();
-                double tariffAmountUSD = (productCostUSD * tariffRate) / 100;
+                double tariffAmountUSD = (productCostUSD * tariffRate) / PERCENTAGE_DIVISOR;
                 double totalCostUSD = productCostUSD + tariffAmountUSD;
 
-                String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : "USD";
+                String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : DEFAULT_CURRENCY;
 
                 double productCost = currencyService.convertFromUSD(productCostUSD, targetCurrency);
                 double tariffAmount = currencyService.convertFromUSD(tariffAmountUSD, targetCurrency);
                 double totalCost = currencyService.convertFromUSD(totalCostUSD, targetCurrency);
 
                 List<TariffResponse.BreakdownItem> breakdown = new ArrayList<>();
-                breakdown.add(new TariffResponse.BreakdownItem("Product Cost", "Base Cost", "100%", productCost));
+                breakdown.add(new TariffResponse.BreakdownItem(BASE_COST_LABEL, BASE_COST_TYPE, BASE_COST_PERCENTAGE, productCost));
                 breakdown.add(new TariffResponse.BreakdownItem(
-                        "Import Tariff (" + selected.getType() + ")",
-                        "Tariff",
+                        TARIFF_LABEL_PREFIX + selected.getType() + ")",
+                        TARIFF_TYPE,
                         String.format("%.2f%%", tariffRate),
                         tariffAmount));
 
@@ -99,7 +118,7 @@ public class TariffService {
                         productCost,
                         totalCost,
                         tariffRate,
-                        selected.getType() + " (user-defined)",
+                        selected.getType() + USER_DEFINED_SUFFIX,
                         breakdown,
                         targetCurrency
                 );
@@ -114,6 +133,7 @@ public class TariffService {
         return calculate(productName, exportingFrom, importingTo, quantity, customCost, currency);
     }
 
+    // find matching user-defined tariff from session tariffs
     private TariffDefinitionsResponse.TariffDefinitionDto findMatchingUserTariff(
             String userTariffId,
             String product,
@@ -143,6 +163,7 @@ public class TariffService {
         return null;
     }
 
+    // calculate tariff using global tariff data (FTA-aware)
     public TariffResponse calculate(String productName, String exportingFrom,
                                     String importingTo, double quantity, String customCost, String currency) {
         try {
@@ -159,7 +180,7 @@ public class TariffService {
                 throw new com.example.calculator.exception.ValidationException("Quantity must be greater than 0");
             }
 
-            // Find product by name only
+            // find product by name only
             List<Product> products = productRepository.findByName(productName);
             if (products.isEmpty()) {
                 throw new com.example.calculator.exception.NotFoundException("Product not found: " + productName);
@@ -176,26 +197,26 @@ public class TariffService {
             Double dbCost = selectedProduct.getCost();
             double unitCost = (customCost != null && !customCost.isEmpty())
                     ? Double.parseDouble(customCost)
-                    : (dbCost != null ? dbCost : 0.0);
+                    : (dbCost != null ? dbCost : DEFAULT_COST);
             double productCostUSD = unitCost * quantity;
 
             boolean hasFTAStatus = hasFTA(importingTo, exportingFrom);
             double tariffRate = hasFTAStatus ? tariff.getAhsWeighted() : tariff.getMfnWeighted();
 
-            double tariffAmountUSD = (productCostUSD * tariffRate) / 100;
+            double tariffAmountUSD = (productCostUSD * tariffRate) / PERCENTAGE_DIVISOR;
             double totalCostUSD = productCostUSD + tariffAmountUSD;
 
-            String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : "USD";
+            String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : DEFAULT_CURRENCY;
 
             double productCost = currencyService.convertFromUSD(productCostUSD, targetCurrency);
             double tariffAmount = currencyService.convertFromUSD(tariffAmountUSD, targetCurrency);
             double totalCost = currencyService.convertFromUSD(totalCostUSD, targetCurrency);
 
             List<TariffResponse.BreakdownItem> breakdown = new ArrayList<>();
-            breakdown.add(new TariffResponse.BreakdownItem("Product Cost", "Base Cost", "100%", productCost));
+            breakdown.add(new TariffResponse.BreakdownItem(BASE_COST_LABEL, BASE_COST_TYPE, BASE_COST_PERCENTAGE, productCost));
             breakdown.add(new TariffResponse.BreakdownItem(
-                    "Import Tariff (" + (hasFTAStatus ? "AHS" : "MFN") + ")",
-                    "Tariff",
+                    TARIFF_LABEL_PREFIX + (hasFTAStatus ? "AHS" : "MFN") + ")",
+                    TARIFF_TYPE,
                     String.format("%.2f%%", tariffRate),
                     tariffAmount));
 
@@ -208,7 +229,7 @@ public class TariffService {
                     productCost,
                     totalCost,
                     tariffRate,
-                    hasFTAStatus ? "AHS (with FTA)" : "MFN (no FTA)",
+                    hasFTAStatus ? AHS_WITH_FTA : MFN_NO_FTA,
                     breakdown,
                     targetCurrency
             );
@@ -222,19 +243,15 @@ public class TariffService {
         }
     }
 
+    // check if both countries are in FTA list
     private boolean hasFTA(String importCountry, String exportCountry) {
-        List<String> ftaCountries = Arrays.asList(
-                "Australia", "China", "Indonesia", "India", "Japan",
-                "Malaysia", "Philippines", "Singapore", "Vietnam"
-        );
-
-        return ftaCountries.contains(importCountry) && ftaCountries.contains(exportCountry);
+        return FTA_COUNTRIES.contains(importCountry) && FTA_COUNTRIES.contains(exportCountry);
     }
 
-    // Currency conversion methods
+    // get all tariffs with optional currency conversion
     public List<TariffDTO> getAllTariffs(Double productCostUSD, String currency) {
-        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
-        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : DEFAULT_CURRENCY;
+        double costUSD = (productCostUSD != null) ? productCostUSD : DEFAULT_COST;
         List<Tariff> tariffs = tariffRepository.findAll();
 
         return tariffs.stream()
@@ -242,9 +259,10 @@ public class TariffService {
                 .collect(Collectors.toList());
     }
 
+    // get tariffs filtered by importing country
     public List<TariffDTO> getTariffsByCountry(String country, Double productCostUSD, String currency) {
-        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
-        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : DEFAULT_CURRENCY;
+        double costUSD = (productCostUSD != null) ? productCostUSD : DEFAULT_COST;
         List<Tariff> tariffs = tariffRepository.findByCountry(country);
 
         return tariffs.stream()
@@ -252,10 +270,11 @@ public class TariffService {
                 .collect(Collectors.toList());
     }
 
+    // get specific tariff by country and partner
     public TariffDTO getTariffByCountryAndPartner(String country, String partner,
                                                   Double productCostUSD, String currency) {
-        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : "USD";
-        double costUSD = (productCostUSD != null) ? productCostUSD : 0.0;
+        String targetCurrency = (currency != null && !currency.isEmpty()) ? currency : DEFAULT_CURRENCY;
+        double costUSD = (productCostUSD != null) ? productCostUSD : DEFAULT_COST;
         Tariff tariff = tariffRepository.findByCountryAndPartner(country, partner)
                 .orElse(null);
 
@@ -266,6 +285,7 @@ public class TariffService {
         return convertTariffToDTO(tariff, costUSD, targetCurrency);
     }
 
+    // convert tariff entity to DTO with currency conversion
     private TariffDTO convertTariffToDTO(Tariff tariff, double productCostUSD, String targetCurrency) {
         Double ahsTariffAmount = null;
         Double mfnTariffAmount = null;
@@ -299,12 +319,13 @@ public class TariffService {
         );
     }
 
+    // calculate tariff amount in target currency
     private double calculateTariffAmount(double productCostUSD, double tariffRatePercent, String targetCurrency) {
         if (productCostUSD == 0.0 || tariffRatePercent == 0.0) {
             return 0.0;
         }
 
-        double tariffAmountUSD = productCostUSD * (tariffRatePercent / 100.0);
+        double tariffAmountUSD = productCostUSD * (tariffRatePercent / PERCENTAGE_DIVISOR);
         return currencyService.convertFromUSD(tariffAmountUSD, targetCurrency);
     }
 }

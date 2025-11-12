@@ -7,10 +7,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+// service for managing user-defined tariff definitions stored in HTTP session (used by tariff-calculator)
 @Service
 public class SessionTariffService {
     
     private static final String SESSION_TARIFFS_KEY = "SESSION_USER_TARIFFS";
+    private static final String MAP_KEY_ID = "id";
 
     private List<java.util.Map<String, Object>> getSessionTariffsRaw(HttpSession session) {
         @SuppressWarnings("unchecked")
@@ -38,7 +40,7 @@ public class SessionTariffService {
 
     private java.util.Map<String, Object> toSessionMap(TariffDefinitionsResponse.TariffDefinitionDto dto) {
         java.util.Map<String, Object> map = new java.util.HashMap<>();
-        map.put("id", dto.getId());
+        map.put(MAP_KEY_ID, dto.getId());
         map.put("product", dto.getProduct());
         map.put("exportingFrom", dto.getExportingFrom());
         map.put("importingTo", dto.getImportingTo());
@@ -96,10 +98,10 @@ public class SessionTariffService {
 
             List<java.util.Map<String, Object>> sessionTariffs = getSessionTariffsRaw(session);
             
-            // Check if tariff with same ID exists, update it; otherwise add new
+            // check if tariff with same ID exists, update it; otherwise add new
             boolean found = false;
             for (int i = 0; i < sessionTariffs.size(); i++) {
-                if (dto.getId().equals(sessionTariffs.get(i).get("id"))) {
+                if (dto.getId().equals(sessionTariffs.get(i).get(MAP_KEY_ID))) {
                     sessionTariffs.set(i, toSessionMap(dto));
                     found = true;
                     break;
@@ -122,17 +124,17 @@ public class SessionTariffService {
         return toDtoList(getSessionTariffsRaw(session));
     }
 
-    // Get specific tariff definition by ID
+    // get specific tariff definition by ID from session
     public TariffDefinitionsResponse.TariffDefinitionDto getTariffDefinitionById(HttpSession session, String id) {
         List<java.util.Map<String, Object>> sessionTariffs = getSessionTariffsRaw(session);
         return sessionTariffs.stream()
-                .filter(t -> id.equals(t.get("id")))
+                .filter(t -> id.equals(t.get(MAP_KEY_ID)))
                 .findFirst()
                 .map(this::fromSessionMap)
                 .orElse(null);
     }
 
-    // Update tariff definition in session
+    // update tariff definition in session
     public TariffDefinitionsResponse.TariffDefinitionDto updateTariffDefinition(
             HttpSession session, 
             String id, 
@@ -140,7 +142,7 @@ public class SessionTariffService {
         List<java.util.Map<String, Object>> sessionTariffs = getSessionTariffsRaw(session);
         
         for (int i = 0; i < sessionTariffs.size(); i++) {
-            if (id.equals(sessionTariffs.get(i).get("id"))) {
+            if (id.equals(sessionTariffs.get(i).get(MAP_KEY_ID))) {
                 // Update with new data but keep the same ID
                 TariffDefinitionsResponse.TariffDefinitionDto updated = new TariffDefinitionsResponse.TariffDefinitionDto(
                     id,
@@ -161,11 +163,11 @@ public class SessionTariffService {
         throw new com.example.calculator.exception.NotFoundException("Tariff definition not found in session: " + id);
     }
 
-    // Delete tariff definition from session
+    // delete tariff definition from session
     public void deleteTariffDefinition(HttpSession session, String id) {
         List<java.util.Map<String, Object>> sessionTariffs = getSessionTariffsRaw(session);
         
-        boolean removed = sessionTariffs.removeIf(t -> id.equals(t.get("id")));
+        boolean removed = sessionTariffs.removeIf(t -> id.equals(t.get(MAP_KEY_ID)));
         
         if (!removed) {
             throw new com.example.calculator.exception.NotFoundException("Tariff definition not found in session: " + id);

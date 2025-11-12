@@ -11,10 +11,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.integration.dto.TariffRateDto;
 import com.example.integration.entity.Tariff;
+import com.example.integration.exception.DataAccessException;
 import com.example.integration.repository.TariffRepository;
 
+// service for updating tariff data from WITS API
 @Service
 public class TariffService {
+
+    private static final int MAX_ERROR_MESSAGE_LENGTH = 80;
+    private static final String UNKNOWN_ERROR = "Unknown error";
+    private static final String UPDATE_LOG_FORMAT = "[Updated] Reporter=%s, Partner=%s, HS=%s, Year=%d | AHS=%.2f%% | MFN=%.2f%%";
+    private static final String ERROR_LOG_FORMAT = "[Error] No existing DB record for Reporter=%s, Partner=%s, HS=%s";
+    private static final String ERROR_WITH_MSG_FORMAT = "[Error] Reporter=%s, Partner=%s, HS=%s: %s";
 
     private final TariffRepository tariffRepository;
     private final WitsApiService witsApiService;
@@ -30,10 +38,7 @@ public class TariffService {
         this.witsApiService = witsApiService;
     }
 
-    /**
-     * Update existing DB row with latest tariff from WITS API.
-     * Does NOT insert new rows.
-     */
+    // update existing DB row with latest tariff from WITS API (does NOT insert new rows)
     @Async("tariffApiExecutor")
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void updateTariffsAsync(String reporterCode, String partnerCode, String hsCode) {
@@ -41,41 +46,41 @@ public class TariffService {
         String partnerName = COUNTRY_CODE_MAP.getOrDefault(partnerCode, partnerCode);
 
         try {
-            // Fetch latest tariff(s) from WITS API
+            // fetch latest tariff(s) from WITS API
             List<TariffRateDto> latestTariffs = witsApiService.fetchTariffs(reporterCode, partnerCode, hsCode);
 
             if (!latestTariffs.isEmpty()) {
                 TariffRateDto latestTariff = latestTariffs.get(0);
 
-                // Fetch existing DB row by reporter + partner + HS code (ignore year)
+                // fetch existing DB row by reporter + partner + HS code (ignore year)
                 Optional<Tariff> existingTariffOpt = tariffRepository.findByCountryAndPartnerAndHsCode(
                         reporterName, partnerName, hsCode);
 
                 if (existingTariffOpt.isPresent()) {
                     Tariff existingTariff = existingTariffOpt.get();
 
-                    // Update year + rates
+                    // update year + rates
                     existingTariff.setYear(latestTariff.getYear());
                     existingTariff.setAhsWeighted(latestTariff.getAhsWeighted());
                     existingTariff.setMfnWeighted(latestTariff.getMfnWeighted());
 
                     tariffRepository.save(existingTariff);
 
-                    System.out.printf("[Updated] Reporter=%s, Partner=%s, HS=%s, Year=%d | AHS=%.2f%% | MFN=%.2f%%%n",
+                    System.out.printf(UPDATE_LOG_FORMAT + "%n",
                             reporterName, partnerName, hsCode, latestTariff.getYear(),
                             latestTariff.getAhsWeighted(),
                             latestTariff.getMfnWeighted());
                 } else {
-                    // Row missing in DB, do NOT insert
-                    System.err.printf("[Error] No existing DB record for Reporter=%s, Partner=%s, HS=%s%n",
+                    // row missing in DB, do NOT insert
+                    System.err.printf(ERROR_LOG_FORMAT + "%n",
                             reporterName, partnerName, hsCode);
                 }
             }
         } catch (Exception e) {
             String msg = e.getMessage() != null
-                    ? e.getMessage().substring(0, Math.min(e.getMessage().length(), 80))
-                    : "Unknown error";
-            System.err.printf("[Error] Reporter=%s, Partner=%s, HS=%s: %s%n",
+                    ? e.getMessage().substring(0, Math.min(e.getMessage().length(), MAX_ERROR_MESSAGE_LENGTH))
+                    : UNKNOWN_ERROR;
+            System.err.printf(ERROR_WITH_MSG_FORMAT + "%n",
                     reporterName, partnerName, hsCode, msg);
         }
     }

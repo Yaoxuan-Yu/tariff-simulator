@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.example.calculator.dto.TariffComparisonDTO;
@@ -22,29 +21,35 @@ import com.example.calculator.exception.ValidationException;
 import com.example.calculator.repository.ProductRepository;
 import com.example.calculator.repository.TariffRepository;
 
-/**
- * Service for handling multi-country tariff comparisons (Stories 1, 2, 3)
- */
+// service for handling multi-country tariff comparisons and history
 @Service
 public class TariffComparisonService {
 
-    @Autowired
-    private TariffRepository tariffRepository;
+    private static final String DEFAULT_CURRENCY = "USD";
+    private static final double PERCENTAGE_DIVISOR = 100.0;
+    private static final double MIN_QUANTITY = 0.0;
+    private static final double VARIATION_FACTOR = 0.5;
+    private static final int MONTHS_BACK_DEFAULT = 6;
 
-    @Autowired
-    private ProductRepository productRepository;
+    private final TariffRepository tariffRepository;
+    private final ProductRepository productRepository;
+    private final CurrencyService currencyService;
 
-    @Autowired
-    private CurrencyService currencyService;
+    public TariffComparisonService(
+            TariffRepository tariffRepository,
+            ProductRepository productRepository,
+            CurrencyService currencyService) {
+        this.tariffRepository = tariffRepository;
+        this.productRepository = productRepository;
+        this.currencyService = currencyService;
+    }
 
     private static final List<String> FTA_COUNTRIES = Arrays.asList(
             "Australia", "China", "Indonesia", "India", "Japan",
             "Malaysia", "Philippines", "Singapore", "Vietnam"
     );
 
-    /**
-     * Story 1: Compare tariffs for same product across multiple countries
-     */
+    // compare tariffs for same product across multiple countries
     public TariffComparisonDTO compareMultipleCountries(
             String product,
             String exportingFrom,
@@ -70,8 +75,8 @@ public class TariffComparisonService {
                     : selectedProduct.getCost();
             double productCost = unitCost * quantity;
 
-            // Target currency
-            String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : "USD";
+            // target currency
+            String targetCurrency = (currency != null && !currency.isEmpty()) ? currency.toUpperCase() : DEFAULT_CURRENCY;
             List<TariffComparisonDTO.CountryComparison> comparisons = new ArrayList<>();
             for (String importingTo : importingToCountries) {
                 TariffComparisonDTO.CountryComparison comparison = buildCountryComparison(
@@ -116,9 +121,7 @@ public class TariffComparisonService {
         }
     }
 
-    /**
-     * Story 2: View tariff trends over time (currently dummy data)
-     */
+    // get tariff history over time (currently using dummy data)
     public TariffHistoryDTO getTariffHistory(
             String product,
             String exportingFrom,
@@ -291,10 +294,10 @@ public class TariffComparisonService {
         double tariffRate = hasFTA ? tariff.getAhsWeighted() : tariff.getMfnWeighted();
         String tariffType = hasFTA ? "AHS" : "MFN";
 
-        // Calculate costs in target currency
+        // calculate costs in target currency
         double productCost = currencyService.convertFromUSD(productCostUSD, targetCurrency);
         double tariffAmount = currencyService.convertFromUSD(
-                (productCostUSD * tariffRate) / 100, targetCurrency
+                (productCostUSD * tariffRate) / PERCENTAGE_DIVISOR, targetCurrency
         );
         double totalCost = productCost + tariffAmount;
 
@@ -345,18 +348,18 @@ public class TariffComparisonService {
         List<TariffHistoryDTO.TimePoint> timePoints = new ArrayList<>();
         LocalDate start = (startDate != null && !startDate.isEmpty())
                 ? LocalDate.parse(startDate)
-                : LocalDate.now().minusMonths(6);
+                : LocalDate.now().minusMonths(MONTHS_BACK_DEFAULT);
         LocalDate end = (endDate != null && !endDate.isEmpty())
                 ? LocalDate.parse(endDate)
                 : LocalDate.now();
 
         DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE;
 
-        // Generate monthly data points (dummy data with slight variations)
+        // generate monthly data points (dummy data with slight variations)
         LocalDate current = start;
         while (!current.isAfter(end)) {
-            // Add slight random variation to simulate historical changes
-            double variation = (Math.random() - 0.5) * 0.5; // ±0.25%
+            // add slight random variation to simulate historical changes
+            double variation = (Math.random() - 0.5) * VARIATION_FACTOR; // ±0.25%
             double historicalRate = Math.max(0, currentRate + variation);
 
             timePoints.add(new TariffHistoryDTO.TimePoint(
