@@ -1,7 +1,6 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Trash2, ShoppingCart, RefreshCw, Download } from "lucide-react"
@@ -54,13 +53,13 @@ export function SessionHistoryPage() {
     try {
       setIsLoading(true)
       setError("")
-      
-      const response = await fetch('http://localhost:8080/api/tariff/history', {
-        method: 'GET',
-        credentials: 'include',
+
+      const response = await fetch("http://localhost:8080/api/tariff/history", {
+        method: "GET",
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
-        }
+          "Content-Type": "application/json",
+        },
       })
 
       if (response.status === 204) {
@@ -96,7 +95,7 @@ export function SessionHistoryPage() {
     if (selectedItems.size === historyItems.length) {
       setSelectedItems(new Set())
     } else {
-      setSelectedItems(new Set(historyItems.map(item => item.calculationId)))
+      setSelectedItems(new Set(historyItems.map((item) => item.calculationId)))
     }
   }
 
@@ -107,13 +106,13 @@ export function SessionHistoryPage() {
 
     try {
       setError("")
-      
-      const response = await fetch('http://localhost:8080/api/tariff/history/clear', {
-        method: 'DELETE',
-        credentials: 'include',
+
+      const response = await fetch("http://localhost:8080/api/tariff/history/clear", {
+        method: "DELETE",
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
-        }
+          "Content-Type": "application/json",
+        },
       })
 
       if (!response.ok) {
@@ -145,11 +144,11 @@ export function SessionHistoryPage() {
       for (const calculationId of selectedItems) {
         try {
           const response = await fetch(`http://localhost:8080/api/export-cart/add/${calculationId}`, {
-            method: 'POST',
-            credentials: 'include',
+            method: "POST",
+            credentials: "include",
             headers: {
-              'Content-Type': 'application/json',
-            }
+              "Content-Type": "application/json",
+            },
           })
 
           if (response.ok) {
@@ -165,13 +164,13 @@ export function SessionHistoryPage() {
       }
 
       if (successCount > 0) {
-        setSuccessMessage(`Successfully added ${successCount} item${successCount !== 1 ? 's' : ''} to export cart`)
+        setSuccessMessage(`Successfully added ${successCount} item${successCount !== 1 ? "s" : ""} to export cart`)
         setSelectedItems(new Set())
         setTimeout(() => setSuccessMessage(""), 3000)
       }
 
       if (failCount > 0) {
-        setError(`Failed to add ${failCount} item${failCount !== 1 ? 's' : ''} to cart`)
+        setError(`Failed to add ${failCount} item${failCount !== 1 ? "s" : ""} to cart`)
         setTimeout(() => setError(""), 5000)
       }
     } catch (err) {
@@ -192,10 +191,9 @@ export function SessionHistoryPage() {
     try {
       setError("")
       setShowDownloadDialog(false)
-      
-      const itemsToDownload = selectedItems.size > 0
-        ? historyItems.filter(item => selectedItems.has(item.calculationId))
-        : historyItems
+
+      const itemsToDownload =
+        selectedItems.size > 0 ? historyItems.filter((item) => selectedItems.has(item.calculationId)) : historyItems
 
       if (itemsToDownload.length === 0) {
         setError("No items to download")
@@ -213,38 +211,43 @@ export function SessionHistoryPage() {
         "Product Cost",
         "Total Cost",
         "Tariff Type",
-        "Calculation Date"
+        "Calculation Date",
       ]
 
-      const rows = itemsToDownload.map(item => [
-        item.product,
-        item.brand,
-        item.exportingFrom,
-        item.importingTo,
-        item.quantity,
-        item.unit,
-        item.productCost.toFixed(2),
-        item.totalCost.toFixed(2),
-        item.tariffType,
-        item.calculationDate
-      ].map(field => `"${field}"`).join(','))
+      const rows = itemsToDownload.map((item) =>
+        [
+          item.product,
+          item.brand,
+          item.exportingFrom,
+          item.importingTo,
+          item.quantity,
+          item.unit,
+          item.productCost.toFixed(2),
+          item.totalCost.toFixed(2),
+          item.tariffType,
+          item.calculationDate,
+        ]
+          .map((field) => `"${field}"`)
+          .join(","),
+      )
 
-      const csv = [headers.join(','), ...rows].join('\n')
+      const csv = [headers.join(","), ...rows].join("\n")
 
       // Download CSV
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
       const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
+      const link = document.createElement("a")
       link.href = url
-      link.setAttribute('download', `session-history-${new Date().toISOString().split('T')[0]}.csv`)
+      link.setAttribute("download", `session-history-${new Date().toISOString().split("T")[0]}.csv`)
       document.body.appendChild(link)
       link.click()
       link.remove()
       window.URL.revokeObjectURL(url)
 
-      setSuccessMessage(selectedItems.size > 0 
-        ? `Downloaded ${selectedItems.size} selected item${selectedItems.size !== 1 ? 's' : ''} as CSV`
-        : "Downloaded all items as CSV"
+      setSuccessMessage(
+        selectedItems.size > 0
+          ? `Downloaded ${selectedItems.size} selected item${selectedItems.size !== 1 ? "s" : ""} as CSV`
+          : "Downloaded all items as CSV",
       )
       setTimeout(() => setSuccessMessage(""), 3000)
     } catch (err) {
@@ -255,11 +258,9 @@ export function SessionHistoryPage() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading session history...</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading session history...</p>
+      </div>
     )
   }
 
@@ -277,126 +278,103 @@ export function SessionHistoryPage() {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-xl font-semibold text-foreground">Session History</CardTitle>
-            <CardDescription>
-              View and manage your calculation history ({historyItems.length} item{historyItems.length !== 1 ? 's' : ''})
-            </CardDescription>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-muted-foreground">
+          {historyItems.length} item{historyItems.length !== 1 ? "s" : ""} in history
+        </p>
+        <Button onClick={loadHistory} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
+
+      {historyItems.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No calculation history</p>
+          <p className="text-sm text-muted-foreground mt-2">Your calculations will appear here</p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground w-12">
+                    <Checkbox
+                      checked={selectedItems.size === historyItems.length && historyItems.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Brand</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Route</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Quantity</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product Cost</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Cost</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tariff Type</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyItems.map((item) => (
+                  <tr key={item.calculationId} className="border-b border-border hover:bg-muted/50">
+                    <td className="py-3 px-4">
+                      <Checkbox
+                        checked={selectedItems.has(item.calculationId)}
+                        onCheckedChange={() => handleSelectItem(item.calculationId)}
+                      />
+                    </td>
+                    <td className="py-3 px-4 text-foreground font-medium">{item.product}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{item.brand}</td>
+                    <td className="py-3 px-4 text-muted-foreground">
+                      {item.exportingFrom} → {item.importingTo}
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">
+                      {item.quantity} {item.unit}
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">${item.productCost.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-foreground font-medium">${item.totalCost.toFixed(2)}</td>
+                    <td className="py-3 px-4">
+                      <Badge variant="secondary">{item.tariffType}</Badge>
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">{item.calculationDate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={loadHistory}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
+            <div className="flex gap-2">
+              <Button
+                onClick={handleAddToCart}
+                disabled={selectedItems.size === 0}
+                className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                size="sm"
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                Add to Cart ({selectedItems.size})
+              </Button>
+              <Button onClick={handleClearAll} variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear All
+              </Button>
+            </div>
+            <Button onClick={handleDownloadClick} variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              {selectedItems.size > 0 ? `Download Selected (${selectedItems.size})` : "Download as CSV"}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          {historyItems.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No calculation history</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Your calculations will appear here
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground w-12">
-                        <Checkbox
-                          checked={selectedItems.size === historyItems.length && historyItems.length > 0}
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Brand</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Route</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Quantity</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product Cost</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Cost</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tariff Type</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyItems.map((item) => (
-                      <tr key={item.calculationId} className="border-b border-border hover:bg-muted/50">
-                        <td className="py-3 px-4">
-                          <Checkbox
-                            checked={selectedItems.has(item.calculationId)}
-                            onCheckedChange={() => handleSelectItem(item.calculationId)}
-                          />
-                        </td>
-                        <td className="py-3 px-4 text-foreground font-medium">{item.product}</td>
-                        <td className="py-3 px-4 text-muted-foreground">{item.brand}</td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {item.exportingFrom} → {item.importingTo}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {item.quantity} {item.unit}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">${item.productCost.toFixed(2)}</td>
-                        <td className="py-3 px-4 text-foreground font-medium">${item.totalCost.toFixed(2)}</td>
-                        <td className="py-3 px-4">
-                          <Badge variant="secondary">{item.tariffType}</Badge>
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">{item.calculationDate}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleAddToCart}
-                    disabled={selectedItems.size === 0}
-                    className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                    size="sm"
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Add to Cart ({selectedItems.size})
-                  </Button>
-                  <Button
-                    onClick={handleClearAll}
-                    variant="destructive"
-                    size="sm"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear All
-                  </Button>
-                </div>
-                <Button
-                  onClick={handleDownloadClick}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {selectedItems.size > 0 
-                    ? `Download Selected (${selectedItems.size})` 
-                    : 'Download as CSV'}
-                </Button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+        </>
+      )}
 
       <AlertDialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Download All Items?</AlertDialogTitle>
             <AlertDialogDescription>
-              No items are selected. Do you want to download all {historyItems.length} item{historyItems.length !== 1 ? 's' : ''} in your history as a CSV file?
+              No items are selected. Do you want to download all {historyItems.length} item
+              {historyItems.length !== 1 ? "s" : ""} in your history as a CSV file?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

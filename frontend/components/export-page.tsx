@@ -1,7 +1,6 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Download, Trash2 } from "lucide-react"
@@ -54,16 +53,18 @@ export function ExportPage() {
     try {
       setIsLoading(true)
       const supabase = (await import("@/lib/supabaseClient")).default
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       const token = session?.access_token
-      
-      const response = await fetch('http://localhost:8080/api/export-cart', {
-        method: 'GET',
+
+      const response = await fetch("http://localhost:8080/api/export-cart", {
+        method: "GET",
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
+          Authorization: token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
         },
-        credentials: 'include'
+        credentials: "include",
       })
 
       if (response.status === 204) {
@@ -99,7 +100,7 @@ export function ExportPage() {
     if (selectedItems.size === cartItems.length) {
       setSelectedItems(new Set())
     } else {
-      setSelectedItems(new Set(cartItems.map(item => item.calculationId)))
+      setSelectedItems(new Set(cartItems.map((item) => item.calculationId)))
     }
   }
 
@@ -110,7 +111,11 @@ export function ExportPage() {
       return
     }
 
-    if (!confirm(`Are you sure you want to delete ${selectedItems.size} selected item${selectedItems.size !== 1 ? 's' : ''}?`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedItems.size} selected item${selectedItems.size !== 1 ? "s" : ""}?`,
+      )
+    ) {
       return
     }
 
@@ -120,18 +125,20 @@ export function ExportPage() {
       let failCount = 0
 
       const supabase = (await import("@/lib/supabaseClient")).default
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       const token = session?.access_token
 
       for (const calculationId of selectedItems) {
         try {
           const response = await fetch(`http://localhost:8080/api/export-cart/remove/${calculationId}`, {
-            method: 'DELETE',
+            method: "DELETE",
             headers: {
-              'Authorization': token ? `Bearer ${token}` : '',
-              'Content-Type': 'application/json'
+              Authorization: token ? `Bearer ${token}` : "",
+              "Content-Type": "application/json",
             },
-            credentials: 'include'
+            credentials: "include",
           })
 
           if (response.ok) {
@@ -146,14 +153,14 @@ export function ExportPage() {
       }
 
       if (successCount > 0) {
-        setCartItems(cartItems.filter(item => !selectedItems.has(item.calculationId)))
+        setCartItems(cartItems.filter((item) => !selectedItems.has(item.calculationId)))
         setSelectedItems(new Set())
-        setSuccessMessage(`Successfully deleted ${successCount} item${successCount !== 1 ? 's' : ''}`)
+        setSuccessMessage(`Successfully deleted ${successCount} item${successCount !== 1 ? "s" : ""}`)
         setTimeout(() => setSuccessMessage(""), 3000)
       }
 
       if (failCount > 0) {
-        setError(`Failed to delete ${failCount} item${failCount !== 1 ? 's' : ''}`)
+        setError(`Failed to delete ${failCount} item${failCount !== 1 ? "s" : ""}`)
       }
     } catch (err) {
       console.error("Error deleting items:", err)
@@ -169,16 +176,18 @@ export function ExportPage() {
     try {
       setError("")
       const supabase = (await import("@/lib/supabaseClient")).default
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       const token = session?.access_token
-      
-      const response = await fetch('http://localhost:8080/api/export-cart/clear', {
-        method: 'DELETE',
+
+      const response = await fetch("http://localhost:8080/api/export-cart/clear", {
+        method: "DELETE",
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
+          Authorization: token ? `Bearer ${token}` : "",
+          "Content-Type": "application/json",
         },
-        credentials: 'include'
+        credentials: "include",
       })
 
       if (!response.ok) {
@@ -223,15 +232,17 @@ export function ExportPage() {
 
       // Import supabase to get auth token
       const supabase = (await import("@/lib/supabaseClient")).default
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       const token = session?.access_token
 
-      const response = await fetch('http://localhost:8080/api/export-cart/export', {
-        method: 'GET',
+      const response = await fetch("http://localhost:8080/api/export-cart/export", {
+        method: "GET",
         headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
+          Authorization: token ? `Bearer ${token}` : "",
         },
-        credentials: 'include'
+        credentials: "include",
       })
 
       if (!response.ok) {
@@ -249,22 +260,22 @@ export function ExportPage() {
         } catch {
           // If we can't read error text, use default message
         }
-        
+
         if (response.status === 404) {
           errorMessage = "Export cart is empty. Please add calculations to the cart first."
         }
-        
+
         throw new Error(errorMessage)
       }
 
       // Check content type
-      const contentType = response.headers.get('content-type')
-      if (contentType && !contentType.includes('text/csv') && !contentType.includes('application/octet-stream')) {
-        console.warn('Unexpected content type:', contentType)
+      const contentType = response.headers.get("content-type")
+      if (contentType && !contentType.includes("text/csv") && !contentType.includes("application/octet-stream")) {
+        console.warn("Unexpected content type:", contentType)
       }
 
       const blob = await response.blob()
-      
+
       // Check if blob is empty
       if (blob.size === 0) {
         throw new Error("Received empty CSV file. The export cart may be empty.")
@@ -272,9 +283,9 @@ export function ExportPage() {
 
       // Create download link
       const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
+      const link = document.createElement("a")
       link.href = url
-      link.setAttribute('download', `tariff-calculations-${new Date().toISOString().split('T')[0]}.csv`)
+      link.setAttribute("download", `tariff-calculations-${new Date().toISOString().split("T")[0]}.csv`)
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -284,18 +295,16 @@ export function ExportPage() {
       setTimeout(() => setSuccessMessage(""), 3000)
     } catch (err) {
       console.error("Error downloading CSV:", err)
-      setError(`Failed to download CSV: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setError(`Failed to download CSV: ${err instanceof Error ? err.message : "Unknown error"}`)
       setTimeout(() => setError(""), 5000)
     }
   }
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading export cart...</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading export cart...</p>
+      </div>
     )
   }
 
@@ -313,117 +322,102 @@ export function ExportPage() {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-xl font-semibold text-foreground">Export Cart</CardTitle>
-              <CardDescription>
-                Review and export your tariff calculations ({cartItems.length} item{cartItems.length !== 1 ? 's' : ''})
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {cartItems.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Your export cart is empty</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Add calculations from the calculator to export them
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground w-12">
-                        <Checkbox
-                          checked={selectedItems.size === cartItems.length && cartItems.length > 0}
-                          onCheckedChange={handleSelectAll}
-                        />
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Brand</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Route</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Quantity</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product Cost</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Cost</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tariff Type</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cartItems.map((item) => (
-                      <tr key={item.calculationId} className="border-b border-border hover:bg-muted/50">
-                        <td className="py-3 px-4">
-                          <Checkbox
-                            checked={selectedItems.has(item.calculationId)}
-                            onCheckedChange={() => handleSelectItem(item.calculationId)}
-                          />
-                        </td>
-                        <td className="py-3 px-4 text-foreground font-medium">{item.product}</td>
-                        <td className="py-3 px-4 text-muted-foreground">{item.brand}</td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {item.exportingFrom} → {item.importingTo}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {item.quantity} {item.unit}
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">${item.productCost.toFixed(2)}</td>
-                        <td className="py-3 px-4 text-foreground font-medium">${item.totalCost.toFixed(2)}</td>
-                        <td className="py-3 px-4">
-                          <Badge variant="secondary">{item.tariffType}</Badge>
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">{item.calculationDate}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      <div className="mb-4">
+        <p className="text-sm text-muted-foreground">
+          {cartItems.length} item{cartItems.length !== 1 ? "s" : ""} in cart
+        </p>
+      </div>
 
-              <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleDeleteSelected}
-                    disabled={selectedItems.size === 0}
-                    variant="destructive"
-                    size="sm"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Selected ({selectedItems.size})
-                  </Button>
-                  <Button
-                    onClick={handleClearAll}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Clear All
-                  </Button>
-                </div>
-                <Button
-                  onClick={handleDownloadClick}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
-                  size="sm"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {selectedItems.size > 0 
-                    ? `Download Selected (${selectedItems.size})` 
-                    : 'Download as CSV'}
-                </Button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {cartItems.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Your export cart is empty</p>
+          <p className="text-sm text-muted-foreground mt-2">Add calculations from the calculator to export them</p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground w-12">
+                    <Checkbox
+                      checked={selectedItems.size === cartItems.length && cartItems.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Brand</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Route</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Quantity</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product Cost</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Cost</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tariff Type</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cartItems.map((item) => (
+                  <tr key={item.calculationId} className="border-b border-border hover:bg-muted/50">
+                    <td className="py-3 px-4">
+                      <Checkbox
+                        checked={selectedItems.has(item.calculationId)}
+                        onCheckedChange={() => handleSelectItem(item.calculationId)}
+                      />
+                    </td>
+                    <td className="py-3 px-4 text-foreground font-medium">{item.product}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{item.brand}</td>
+                    <td className="py-3 px-4 text-muted-foreground">
+                      {item.exportingFrom} → {item.importingTo}
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">
+                      {item.quantity} {item.unit}
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">${item.productCost.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-foreground font-medium">${item.totalCost.toFixed(2)}</td>
+                    <td className="py-3 px-4">
+                      <Badge variant="secondary">{item.tariffType}</Badge>
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">{item.calculationDate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
+            <div className="flex gap-2">
+              <Button
+                onClick={handleDeleteSelected}
+                disabled={selectedItems.size === 0}
+                variant="destructive"
+                size="sm"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Selected ({selectedItems.size})
+              </Button>
+              <Button onClick={handleClearAll} variant="outline" size="sm">
+                Clear All
+              </Button>
+            </div>
+            <Button
+              onClick={handleDownloadClick}
+              className="bg-accent hover:bg-accent/90 text-accent-foreground"
+              size="sm"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {selectedItems.size > 0 ? `Download Selected (${selectedItems.size})` : "Download as CSV"}
+            </Button>
+          </div>
+        </>
+      )}
 
       <AlertDialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Download All Items?</AlertDialogTitle>
             <AlertDialogDescription>
-              No items are selected. Do you want to download all {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} in your cart as a CSV file?
+              No items are selected. Do you want to download all {cartItems.length} item
+              {cartItems.length !== 1 ? "s" : ""} in your cart as a CSV file?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

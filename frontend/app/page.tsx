@@ -15,17 +15,20 @@ import { TradeInsights } from "@/components/trade-insights"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { LogOut, User, History, Shield } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { LogOut, User, Settings, Shield, ShoppingCart } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 type AuthView = "login" | "signup"
-type DashboardView =
-  | "dashboard"
-  | "global-tariffs"
-  | "simulator-tariffs"
-  | "cart"
-  | "history"
-  | "tariff-compare"
-  | "trade-insights"
+type DashboardView = "dashboard" | "global-tariffs" | "simulator-tariffs" | "tariff-compare" | "trade-insights"
 type CalculatorMode = "global" | "simulator"
 
 const API_BASE_URL = "http://localhost:8080/api"
@@ -40,6 +43,8 @@ export default function Home() {
   const [sessionHistory, setSessionHistory] = useState<any[]>([])
   const [exportCart, setExportCart] = useState<any[]>([])
   const [cartCount, setCartCount] = useState<number>(0)
+  const [isExportSheetOpen, setIsExportSheetOpen] = useState(false)
+  const [isHistorySheetOpen, setIsHistorySheetOpen] = useState(false)
 
   const handleLogin = (userData: any) => {
     setUser(userData)
@@ -210,30 +215,6 @@ export default function Home() {
     await fetchCalculationHistory()
   }
 
-  const navigateToHistory = async () => {
-    setCurrentView("history")
-    await fetchCalculationHistory()
-  }
-
-  const navigateToCart = async () => {
-    setCurrentView("cart")
-    await fetchCartCount()
-  }
-
-  const renderAuthView = () => {
-    if (authView === "login") {
-      return <LoginForm onLogin={handleLogin} onSwitchToSignup={() => setAuthView("signup")} />
-    }
-    return <SignupForm onSignup={handleSignup} onSwitchToLogin={() => setAuthView("login")} />
-  }
-
-  const getNavButtonClasses = (view: DashboardView): string => {
-    const baseClasses = "px-3 py-2 text-sm font-medium rounded-md"
-    const activeClasses = "bg-slate-100 text-slate-900"
-    const inactiveClasses = "text-slate-600 hover:text-slate-900"
-    return `${baseClasses} ${currentView === view ? activeClasses : inactiveClasses}`
-  }
-
   const getUserDisplayName = (): string => {
     return user?.name || "User"
   }
@@ -262,8 +243,30 @@ export default function Home() {
     return calculatorMode === "global" ? "global" : "user"
   }
 
+  const renderAuthView = () => {
+    if (authView === "login") {
+      return <LoginForm onLogin={handleLogin} />
+    } else if (authView === "signup") {
+      return <SignupForm onSignup={handleSignup} />
+    }
+    return null
+  }
+
   if (!user) {
-    return renderAuthView()
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <header className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-8">
+                <h1 className="text-2xl font-bold text-slate-900">TariffWise</h1>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{renderAuthView()}</main>
+      </div>
+    )
   }
 
   return (
@@ -301,36 +304,72 @@ export default function Home() {
                 >
                   Trade Insights
                 </button>
-                <button onClick={navigateToCart} className={getNavButtonClasses("cart")}>
-                  Export Cart ({cartCount})
-                </button>
               </nav>
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button
-                onClick={navigateToHistory}
-                variant="outline"
-                size="sm"
-                className="flex items-center space-x-2 bg-transparent"
-              >
-                <History className="h-4 w-4" />
-                <span>Session History ({sessionHistory.length})</span>
-              </Button>
-              <div className="flex items-center space-x-2 text-sm text-slate-600">
-                {renderUserRoleIcon()}
-                <span>{getUserDisplayName()}</span>
-                <span className="text-xs bg-slate-100 px-2 py-1 rounded-full">{getUserRoleLabel()}</span>
-              </div>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                size="sm"
-                className="flex items-center space-x-2 bg-transparent"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
-              </Button>
+              <Sheet open={isExportSheetOpen} onOpenChange={setIsExportSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="relative flex items-center space-x-2 bg-transparent">
+                    <ShoppingCart className="h-4 w-4" />
+                    {cartCount > 0 && (
+                      <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                        {cartCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Export Cart</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6">
+                    <ExportPage />
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center space-x-2 bg-transparent">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="flex items-center space-x-2">
+                    {renderUserRoleIcon()}
+                    <div className="flex flex-col">
+                      <span>{getUserDisplayName()}</span>
+                      <span className="text-xs font-normal text-muted-foreground">{getUserRoleLabel()}</span>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setIsHistorySheetOpen(true)
+                      fetchCalculationHistory()
+                    }}
+                  >
+                    Session History ({sessionHistory.length})
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Sheet open={isHistorySheetOpen} onOpenChange={setIsHistorySheetOpen}>
+                <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Session History</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6">
+                    <SessionHistoryPage />
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
         </div>
@@ -430,31 +469,6 @@ export default function Home() {
           </>
         )}
 
-        {currentView === "cart" && (
-          <>
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Export Cart</h2>
-              <p className="text-slate-600">Manage and export your selected calculations.</p>
-            </div>
-            <ExportPage />
-          </>
-        )}
-
-        {currentView === "history" && (
-          <>
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">Session History</h2>
-                <p className="text-slate-600">View and manage your calculation history.</p>
-              </div>
-              <Button onClick={() => setCurrentView("dashboard")} variant="outline" size="sm">
-                Back to Dashboard
-              </Button>
-            </div>
-            <SessionHistoryPage />
-          </>
-        )}
-
         {currentView === "tariff-compare" && (
           <>
             <div className="mb-8">
@@ -481,4 +495,11 @@ export default function Home() {
       </main>
     </div>
   )
+}
+
+const getNavButtonClasses = (view: DashboardView): string => {
+  const baseClasses = "px-3 py-2 text-sm font-medium rounded-md"
+  const activeClasses = "bg-slate-100 text-slate-900"
+  const inactiveClasses = "text-slate-600 hover:text-slate-900"
+  return `${baseClasses} ${view === "dashboard" ? activeClasses : inactiveClasses}`
 }
