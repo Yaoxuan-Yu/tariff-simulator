@@ -18,6 +18,36 @@ or run every single microservice manually using:
 
 mvnw spring-boot:run
 
+## Running Tests
+
+### Quick Start
+```bash
+# Option 1: Use the test script (RECOMMENDED)
+cd backend
+run-all-tests.bat          # Windows
+./run-all-tests.sh         # Linux/Mac
+
+# Option 2: Try Maven from root (may not work if modules not configured)
+cd backend
+mvn test
+
+# Option 3: Run tests for a specific service
+cd backend/tariff-calculator
+mvn test
+
+# Run only unit tests (fast, no Docker needed)
+cd backend/<service-name>
+mvn test -Dtest="*UnitTest"
+
+# Run only integration tests (requires Docker)
+cd backend/<service-name>
+mvn test -Dtest="*IntegrationTest"
+```
+
+**Prerequisites**: Docker must be running (required for TestContainers integration tests)
+
+See [TESTING_GUIDE.md](./TESTING_GUIDE.md) for detailed testing instructions.
+
 
 Product endpoints:
 GET /api/products → ProductRoutingController → product-service
@@ -91,3 +121,83 @@ Verifies data parsing and error handling
 5. EndToEndTariffCalculationFlowIntegrationTest
 Tests complete flow: API Gateway → Tariff Calculator → Session Management
 Verifies the entire request chain works correctly
+
+
+Unit tests created: 
+Service unit tests (business logic)
+1. TariffServiceUnitTest (tariff-calculator)
+Tests tariff calculation logic
+Tests FTA vs MFN rate selection
+Tests currency conversion
+Tests validation and error handling
+
+2. SessionHistoryServiceUnitTest (session-management)
+Tests saving calculations to session
+Tests history retrieval
+Tests history limits (100 items)
+Tests Redis integration
+
+3. ExportCartServiceUnitTest (csv-export)
+Tests adding/removing items from cart
+Tests duplicate prevention
+Tests error handling
+
+4. TariffServiceUnitTest (global-tariffs)
+Tests tariff definition CRUD operations
+Tests validation
+Tests FTA logic
+
+5. ProductServiceUnitTest (product-service)
+Tests product/country/partner retrieval
+Tests error handling
+
+6. CurrencyServiceUnitTest (tariff-calculator)
+Tests currency conversion
+Tests exchange rate retrieval
+
+7. TariffComparisonServiceUnitTest (tariff-calculator)
+Tests multi-country comparison
+Tests tariff history generation
+Tests trends calculation
+
+8. SessionTariffServiceUnitTest (simulator-tariffs)
+Tests session-based tariff management
+Tests CRUD operations
+
+9. TradeInsightsServiceUnitTest (trade-insights)
+Tests aggregation of news and agreements
+Tests error 
+
+10. NewsServiceUnitTest (trade-insights)
+Tests news search functionality
+
+11. AgreementServiceUnitTest (trade-insights)
+Tests agreement search functionality
+
+12. CsvExportServiceUnitTest (csv-export)
+Tests CSV generation
+Tests CSV escaping
+
+13. RoutingServiceUnitTest (api-gateway)
+Tests URL building
+Tests request forwarding
+Tests header/cookie forwarding
+
+14. Controller unit tests (HTTP layer)
+TariffCalculationControllerUnitTest
+GlobalTariffControllerUnitTest
+ProductControllerUnitTest
+SessionHistoryControllerUnitTest
+ExportCartControllerUnitTest
+SimulatorTariffControllerUnitTest
+TradeInsightsControllerUnitTest
+NewsControllerUnitTest
+AgreementControllerUnitTest
+
+Test characteristics
+All dependencies mocked (repositories, services, clients)
+Fast execution (no databases, no network calls)
+Tests business logic, validation, and error handling
+Edge cases covered (null values, empty lists, invalid inputs)
+Uses Mockito for mocking
+Uses JUnit 5 for assertions
