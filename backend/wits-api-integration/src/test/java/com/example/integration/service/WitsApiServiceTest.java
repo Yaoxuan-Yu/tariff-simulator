@@ -1,19 +1,18 @@
 package com.example.integration.service;
 
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.client.RestTemplate;
 
 import com.example.integration.dto.TariffRateDto;
-import org.springframework.web.client.RestTemplate;
 
 @ExtendWith(MockitoExtension.class)
 public class WitsApiServiceTest {
@@ -24,11 +23,19 @@ public class WitsApiServiceTest {
     @InjectMocks
     private WitsApiService witsApiService;
 
-    // TODO: Add tests for fetchTariffs method
-    // TODO: Add tests for API response parsing
-    // TODO: Add tests for handling empty API responses
-    // TODO: Add tests for handling API errors
-    // TODO: Add tests for extracting latest year data
-    // TODO: Add tests for handling different JSON structures
-}
+    @Test
+    void fetchTariffs_ShouldReturnParsedDto() {
+        String url = "https://api.wits.worldbank.org/test";
+        TariffRateDto[] mockResponse = new TariffRateDto[]{
+            new TariffRateDto("SG", "CN", 5.0)
+        };
 
+        when(restTemplate.getForObject(url, TariffRateDto[].class)).thenReturn(mockResponse);
+
+        TariffRateDto[] result = witsApiService.fetchTariffs(url);
+
+        assertNotNull(result);
+        assertEquals(1, result.length);
+        assertEquals("SG", result[0].getReporter());
+    }
+}

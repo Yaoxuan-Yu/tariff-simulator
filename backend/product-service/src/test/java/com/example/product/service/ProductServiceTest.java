@@ -1,22 +1,21 @@
 package com.example.product.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
+
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.example.product.client.GlobalTariffsClient;
+import com.example.product.entity.Product;
+import com.example.product.repository.ProductRepository;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import com.example.product.entity.Product;
-import com.example.product.repository.ProductRepository;
-import com.example.product.client.GlobalTariffsClient;
 
 @ExtendWith(MockitoExtension.class)
 public class ProductServiceTest {
@@ -40,9 +39,6 @@ public class ProductServiceTest {
         testProduct.setUnit("piece");
     }
 
-    // TODO: Add tests for getAllCountries method (calls globalTariffsClient)
-    // TODO: Add tests for getAllPartners method (calls globalTariffsClient)
-    
     @Test
     void getAllProducts_Success() {
         when(productRepository.findDistinctProducts())
@@ -55,5 +51,27 @@ public class ProductServiceTest {
         assertTrue(products.contains("Product 1"));
     }
 
-}
+    @Test
+    void getAllCountries_Success() {
+        when(globalTariffsClient.getAllCountries())
+            .thenReturn(List.of("Singapore", "China"));
 
+        List<String> countries = productService.getAllCountries();
+
+        assertNotNull(countries);
+        assertEquals(2, countries.size());
+        assertTrue(countries.contains("Singapore"));
+    }
+
+    @Test
+    void getAllPartners_Success() {
+        when(globalTariffsClient.getAllPartners())
+            .thenReturn(List.of("China", "India"));
+
+        List<String> partners = productService.getAllPartners();
+
+        assertNotNull(partners);
+        assertEquals(2, partners.size());
+        assertTrue(partners.contains("India"));
+    }
+}

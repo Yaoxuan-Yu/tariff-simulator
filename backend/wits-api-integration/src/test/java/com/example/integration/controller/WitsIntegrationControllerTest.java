@@ -1,15 +1,28 @@
 package com.example.integration.controller;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+
+@ExtendWith(SpringExtension.class)
+@SpringBootTest
+@AutoConfigureMockMvc
 public class WitsIntegrationControllerTest {
 
-    // TODO: Add tests for WitsIntegrationController
-    // TODO: Add tests for testUpdateTariffs endpoint (GET /admin/test-update-tariffs)
-    // TODO: Add tests for tariff scheduler trigger
-    // TODO: Add tests for error handling
-}
+    @Autowired
+    private MockMvc mockMvc;
 
+    @Test
+    void testUpdateTariffsEndpoint_ShouldReturnOk() throws Exception {
+        mockMvc.perform(get("/admin/test-update-tariffs"))
+               .andExpect(status().isOk());
+    }
+}
