@@ -4,17 +4,22 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.example.session.dto.CalculationHistoryDto;
-import com.example.export.service.ExportCartService;
 import com.example.export.service.CsvExportService;
-
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+import com.example.export.service.ExportCartService;
+import com.example.session.dto.CalculationHistoryDto;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 // rest endpoints for managing the export cart & csv download
 @RestController
@@ -54,7 +59,7 @@ public class ExportCartController {
             throw new com.example.export.exception.BadRequestException("Calculation ID is required");
         }
         try {
-            exportCartService.addToCart(session, calculationId);
+            exportCartService.addToCart(calculationId, session);
             return ResponseEntity.ok().build();
         } catch (com.example.export.exception.NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -73,7 +78,7 @@ public class ExportCartController {
             throw new com.example.export.exception.BadRequestException("Calculation ID is required");
         }
         try {
-            exportCartService.removeFromCart(session, calculationId);
+            exportCartService.removeFromCart(calculationId, session);
             return ResponseEntity.ok().build();
         } catch (com.example.export.exception.NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());

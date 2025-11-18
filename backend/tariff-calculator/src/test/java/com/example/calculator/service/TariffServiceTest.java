@@ -194,5 +194,4 @@ public class TariffServiceTest {
         assertEquals(10_200_000.0, response.getData().getTotalCost());
     }
 
-    // TODO: Add future tests for calculateWithMode and hasFTA when extended
 }

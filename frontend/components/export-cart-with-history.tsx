@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import supabase from "@/lib/supabaseClient"  // ← moved to top
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -62,7 +63,6 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
   const loadCartItems = async () => {
     try {
       setIsLoadingCart(true)
-      const supabase = (await import("@/lib/supabaseClient")).default
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       
@@ -97,7 +97,6 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
   const loadHistory = async () => {
     try {
       setIsLoadingHistory(true)
-      const supabase = (await import("@/lib/supabaseClient")).default
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       
@@ -192,7 +191,6 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
     try {
       setError("")
       let successCount = 0
-      const supabase = (await import("@/lib/supabaseClient")).default
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
 
@@ -239,7 +237,6 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
 
     try {
       setError("")
-      const supabase = (await import("@/lib/supabaseClient")).default
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
       
@@ -281,7 +278,6 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
     try {
       setError("")
       let successCount = 0
-      const supabase = (await import("@/lib/supabaseClient")).default
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
 
@@ -331,7 +327,6 @@ export function ExportCartWithHistory({ onCartCountChange }: ExportCartWithHisto
         return
       }
 
-      const supabase = (await import("@/lib/supabaseClient")).default
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
 

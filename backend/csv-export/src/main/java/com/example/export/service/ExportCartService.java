@@ -1,10 +1,13 @@
 package com.example.export.service;
 
-import com.example.session.dto.CalculationHistoryDto;
-import org.springframework.stereotype.Service;
-import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.example.session.dto.CalculationHistoryDto;
+
+import jakarta.servlet.http.HttpSession;
 
 // manages export cart entries stored in the user's http session
 @Service
@@ -20,10 +23,10 @@ public class ExportCartService {
     }
     
     // add calculation to cart (moves item from session history)
-    public void addToCart(HttpSession session, String calculationId) {
+    public void addToCart(String calculationId, HttpSession session) {
         // call session-management to fetch calculation by id
         log.debug("Fetching calculation {} for session {}", calculationId, session.getId());
-        CalculationHistoryDto calculation = sessionManagementClient.getCalculationById(session.getId(), calculationId);
+        CalculationHistoryDto calculation = sessionManagementClient.getCalculationById(session.getId());
         
         if (calculation == null) {
             throw new com.example.export.exception.NotFoundException("Calculation not found in history");
@@ -54,7 +57,7 @@ public class ExportCartService {
     }
 
     // remove individual calculation from cart
-    public void removeFromCart(HttpSession session, String calculationId) {
+    public void removeFromCart(String calculationId, HttpSession session) {
         @SuppressWarnings("unchecked")
         List<CalculationHistoryDto> cart = (List<CalculationHistoryDto>) session.getAttribute(CART_SESSION_KEY);
         if (cart == null || cart.isEmpty()) {
