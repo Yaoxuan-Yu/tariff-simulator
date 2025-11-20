@@ -15,8 +15,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,6 +28,7 @@ import org.springframework.http.ResponseEntity;
 
 import com.example.export.controller.ExportCartController;
 import com.example.export.exception.BadRequestException;
+import com.example.export.exception.ExportException;
 import com.example.export.exception.NotFoundException;
 import com.example.session.dto.CalculationHistoryDto;
 
@@ -90,7 +93,7 @@ public class ExportCartControllerTest {
         verify(exportCartService, times(1)).getCart(session);
     }
 
-    // Test 2: GET /api/export-cart - empty cart returns 200 OK with empty list
+    // Test 2: GET /api/export-cart - empty cart returns 204 NO_CONTENT
     @Test
     public void getCart_EmptyCart_ReturnsEmptyList_200OK() {
         // Arrange: Service returns empty list
@@ -100,9 +103,8 @@ public class ExportCartControllerTest {
         ResponseEntity<List<CalculationHistoryDto>> cartResponse = exportCartController.getCart(session);
 
         // Assert
-        assertEquals(HttpStatus.OK, cartResponse.getStatusCode());
-        assertNotNull(cartResponse.getBody());
-        assertTrue(cartResponse.getBody() != null && cartResponse.getBody().isEmpty(), "Empty cart should return empty list");
+        // Empty cart returns 204 NO_CONTENT with null body
+        assertEquals(HttpStatus.NO_CONTENT, cartResponse.getStatusCode());
         verify(exportCartService, times(1)).getCart(session);
     }
 
@@ -123,15 +125,14 @@ public class ExportCartControllerTest {
     @Test
     public void addToCart_DuplicateId_ThrowsBadRequestException() {
         // Arrange: Service throws BadRequestException
-        String errorMsg = "Calculation already exists in cart";
+        String errorMsg = "Item already in cart";
         doThrow(new BadRequestException(errorMsg)).when(exportCartService).addToCart(eq(testCalculationId), eq(session));
 
-        // Act + Assert: Verify exception is thrown
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> {
-            exportCartController.addToCart(testCalculationId, session);
-        });
+        // Act: Controller catches exception and returns BAD_REQUEST
+        ResponseEntity<?> response = exportCartController.addToCart(testCalculationId, session);
 
-        assertEquals(errorMsg, exception.getMessage(), "Duplicate error message incorrect");
+        // Assert: Returns BAD_REQUEST status
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         verify(exportCartService, times(1)).addToCart(testCalculationId, session);
     }
 
@@ -139,15 +140,14 @@ public class ExportCartControllerTest {
     @Test
     public void addToCart_NonExistentId_ThrowsNotFoundException() {
         // Arrange: Service throws NotFoundException
-        String errorMsg = "Calculation not found with ID: " + testCalculationId;
+        String errorMsg = "Calculation not found in history";
         doThrow(new NotFoundException(errorMsg)).when(exportCartService).addToCart(eq(testCalculationId), eq(session));
 
-        // Act + Assert
-        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
-            exportCartController.addToCart(testCalculationId, session);
-        });
+        // Act: Controller catches exception and returns NOT_FOUND
+        ResponseEntity<?> response = exportCartController.addToCart(testCalculationId, session);
 
-        assertEquals(errorMsg, exception.getMessage(), "NotFound error message incorrect");
+        // Assert: Returns NOT_FOUND status
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         verify(exportCartService, times(1)).addToCart(testCalculationId, session);
     }
 
@@ -168,15 +168,14 @@ public class ExportCartControllerTest {
     @Test
     public void removeFromCart_NonExistentId_ThrowsNotFoundException() {
         // Arrange: Service throws NotFoundException
-        String errorMsg = "Calculation not found in cart";
+        String errorMsg = "Item not found in cart";
         doThrow(new NotFoundException(errorMsg)).when(exportCartService).removeFromCart(eq(testCalculationId), eq(session));
 
-        // Act + Assert
-        NotFoundException exception = assertThrows(NotFoundException.class, () -> {
-            exportCartController.removeFromCart(testCalculationId, session);
-        });
+        // Act: Controller catches exception and returns NOT_FOUND
+        ResponseEntity<?> response = exportCartController.removeFromCart(testCalculationId, session);
 
-        assertEquals(errorMsg, exception.getMessage(), "Removal error message incorrect");
+        // Assert: Returns NOT_FOUND status
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         verify(exportCartService, times(1)).removeFromCart(testCalculationId, session);
     }
 
@@ -208,20 +207,19 @@ public class ExportCartControllerTest {
         verify(csvExportService, times(1)).exportToCsv(testCartItems, response);
     }
 
-    // Test 10: GET /api/export-cart/export - IOException during export is propagated
+    // Test 10: GET /api/export-cart/export - Exception during export sets error status
     @Test
     public void exportCartAsCsv_IOExceptionThrown_ThrowsException() throws IOException {
-        // Arrange: CSV service throws IOException
+        // Arrange: CSV service throws ExportException (wrapped IOException)
         when(exportCartService.getCart(session)).thenReturn(testCartItems);
         String errorMsg = "Export failed";
-        doThrow(new IOException(errorMsg)).when(csvExportService).exportToCsv(eq(testCartItems), eq(response));
+        doThrow(new ExportException(errorMsg, new IOException())).when(csvExportService).exportToCsv(eq(testCartItems), eq(response));
 
-        // Act + Assert
-        IOException exception = assertThrows(IOException.class, () -> {
-            exportCartController.exportCartAsCsv(session, response);
-        });
+        // Act: Controller catches exception and sets error status
+        exportCartController.exportCartAsCsv(session, response);
 
-        assertEquals(errorMsg, exception.getMessage(), "IO Exception message incorrect");
+        // Assert: Error status is set
+        verify(response, times(1)).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         verify(exportCartService, times(1)).getCart(session);
         verify(csvExportService, times(1)).exportToCsv(testCartItems, response);
     }
@@ -229,16 +227,16 @@ public class ExportCartControllerTest {
     // Test 11: GET /api/export-cart/export - empty cart exports CSV (no exception)
     @Test
     public void exportCartAsCsv_EmptyCart_ExecutesWithoutException() throws IOException {
-        // Arrange: Empty cart; CSV service exports without error
+        // Arrange: Empty cart
         List<CalculationHistoryDto> emptyCart = new ArrayList<>();
         when(exportCartService.getCart(session)).thenReturn(emptyCart);
-        doNothing().when(csvExportService).exportToCsv(eq(emptyCart), eq(response));
 
         // Act
         exportCartController.exportCartAsCsv(session, response);
 
-        // Assert: Verify service calls
+        // Assert: Sets NO_CONTENT and doesn't call CSV service
+        verify(response, times(1)).setStatus(HttpServletResponse.SC_NO_CONTENT);
         verify(exportCartService, times(1)).getCart(session);
-        verify(csvExportService, times(1)).exportToCsv(emptyCart, response);
+        verify(csvExportService, never()).exportToCsv(any(), any());
     }
 }

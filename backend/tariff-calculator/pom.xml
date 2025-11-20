@@ -76,6 +76,37 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<!-- JaCoCo Maven Plugin for Code Coverage -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.12</version>
+				<executions>
+					<execution>
+						<id>jacoco-initialize</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-site</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<excludes>
+						<exclude>**/config/**</exclude>
+						<exclude>**/dto/**</exclude>
+						<exclude>**/entity/**</exclude>
+						<exclude>**/model/**</exclude>
+						<exclude>**/*Application.class</exclude>
+						<exclude>**/*Config.class</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>
