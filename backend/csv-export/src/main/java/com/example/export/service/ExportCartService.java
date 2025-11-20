@@ -26,7 +26,7 @@ public class ExportCartService {
     public void addToCart(String calculationId, HttpSession session) {
         // call session-management to fetch calculation by id
         log.debug("Fetching calculation {} for session {}", calculationId, session.getId());
-        CalculationHistoryDto calculation = sessionManagementClient.getCalculationById(session.getId());
+        CalculationHistoryDto calculation = sessionManagementClient.getCalculationById(session.getId(), calculationId);
         
         if (calculation == null) {
             throw new com.example.export.exception.NotFoundException("Calculation not found in history");

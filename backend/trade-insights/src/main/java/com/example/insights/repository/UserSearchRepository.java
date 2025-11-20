@@ -6,10 +6,9 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Repository
-public interface UserSearchRepository extends JpaRepository<UserSearch, UUID> {
+public interface UserSearchRepository extends JpaRepository<UserSearch, Long> {
     List<UserSearch> findByUserId(String userId);
     List<UserSearch> findByCreatedAtAfter(LocalDateTime dateTime);
 }

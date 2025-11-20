@@ -74,6 +74,7 @@ public class SecurityConfig { // sets up jwt inspection, cors, http headers to a
                         .requestMatchers(HttpMethod.POST, "/api/tariff-definitions/modified").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/tariff-definitions/modified/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/tariff-definitions/modified/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/tariff-definitions/global").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/admin/**").hasRole("ADMIN")
                         // all other API routes are proxied; downstream services enforce fine-grained security.
                         .requestMatchers("/api/**").permitAll()

@@ -135,6 +135,11 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
   }
 
   const handleEditTariff = (tariff: TariffDefinition) => {
+    // Only admins can edit tariffs
+    if (!isAdminRole()) {
+      showAlert("Access Denied", "Only administrators can edit tariffs.")
+      return
+    }
     setEditingTariff(tariff)
     setNewTariff({
       product: tariff.product,
@@ -149,6 +154,12 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
   }
 
   const handleUpdateTariff = async () => {
+    // Only admins can update tariffs
+    if (!isAdminRole()) {
+      showAlert("Access Denied", "Only administrators can update tariffs.")
+      return
+    }
+
     if (!editingTariff) {
       return
     }
@@ -170,9 +181,19 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
     try {
       const token = await getAuthToken()
       const isUserTariff = simulatorMode || editingTariff.id.startsWith(USER_ID_PREFIX)
+      
+      // For modified tariffs, construct ID as {importingTo}_{exportingFrom}
+      // For user tariffs, use the existing ID
+      const tariffId = isUserTariff 
+        ? editingTariff.id 
+        : `${newTariff.importingTo}_${newTariff.exportingFrom}`
+      
+      // URL encode the tariff ID to handle spaces and special characters
+      const encodedTariffId = encodeURIComponent(tariffId)
+      
       const endpoint = isUserTariff
-        ? `${API_BASE_URL}/tariff-definitions/user/${editingTariff.id}`
-        : `${API_BASE_URL}/tariff-definitions/modified/${editingTariff.id}`
+        ? `${API_BASE_URL}/tariff-definitions/user/${encodedTariffId}`
+        : `${API_BASE_URL}/tariff-definitions/modified/${encodedTariffId}`
 
       const res = await fetch(endpoint, {
         method: "PUT",
@@ -190,8 +211,10 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
         await reloadUserTariffs()
         showAlert("Success", "Tariff has been successfully updated.")
       } else {
+        // Reload both modified and global tariffs to ensure UI is in sync with Supabase
         await reloadModifiedTariffs()
-        showAlert("Success", "Tariff has been successfully updated.")
+        await loadGlobalTariffs()
+        showAlert("Success", "Tariff has been successfully updated in the database.")
       }
 
       setEditingTariff(null)
@@ -436,17 +459,40 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
     }
   }
 
-  const deleteTariffFromBackend = async (id: string, isModifiedGlobal: boolean): Promise<Response> => {
+  const deleteTariffFromBackend = async (id: string, isModifiedGlobal: boolean, tariff?: TariffDefinition): Promise<Response> => {
     const token = await getAuthToken()
-    const endpoint = isModifiedGlobal 
-      ? `${API_BASE_URL}/tariff-definitions/modified/${id}`
-      : `${API_BASE_URL}/tariff-definitions/user/${id}`
+    
+    // For global tariffs (numeric IDs), we need to send the tariff data to identify the database row
+    const isGlobalTariff = /^\d+$/.test(id) && !isModifiedGlobal
+    
+    if (isGlobalTariff && tariff) {
+      // Delete global tariff from database - send tariff data
+      const endpoint = `${API_BASE_URL}/tariff-definitions/global`
+      return fetch(endpoint, {
+        method: "DELETE",
+        headers: createAuthHeaders(token),
+        credentials: 'include',
+        body: JSON.stringify({
+          product: tariff.product,
+          importingTo: tariff.importingTo,
+          exportingFrom: tariff.exportingFrom,
+          type: tariff.type,
+          rate: tariff.rate
+        })
+      })
+    } else {
+      // Delete user tariff or modified global tariff - use ID
+      const encodedId = encodeURIComponent(id)
+      const endpoint = isModifiedGlobal 
+        ? `${API_BASE_URL}/tariff-definitions/modified/${encodedId}`
+        : `${API_BASE_URL}/tariff-definitions/user/${encodedId}`
 
-    return fetch(endpoint, {
-      method: "DELETE",
-      headers: createAuthHeaders(token),
-      credentials: 'include'
-    })
+      return fetch(endpoint, {
+        method: "DELETE",
+        headers: createAuthHeaders(token),
+        credentials: 'include'
+      })
+    }
   }
 
   const reloadModifiedTariffs = async () => {
@@ -464,26 +510,104 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
     }
   }
 
-  const handleDeleteTariff = async (id: string, isModifiedGlobal: boolean) => {
+  const handleDeleteTariff = async (id: string, isModifiedGlobal: boolean, tariff?: TariffDefinition) => {
     try {
-      const res = await deleteTariffFromBackend(id, isModifiedGlobal)
+      // Only admins can delete tariffs
+      if (!isAdminRole()) {
+        showAlert("Access Denied", "Only administrators can delete tariffs.")
+        return
+      }
 
-      if (!res.ok) throw new Error(`Delete failed ${res.status}`)
+      // Check if this is a global tariff (sequential numeric ID) - only admins can delete these
+      const isGlobalTariff = /^\d+$/.test(id) && !isModifiedGlobal
+      
+      if (isGlobalTariff && !tariff) {
+        showAlert("Error", "Tariff data is required to delete global tariffs.")
+        return
+      }
 
-      if (isModifiedGlobal) {
+      const res = await deleteTariffFromBackend(id, isModifiedGlobal, tariff)
+
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Delete failed ${res.status}: ${errorText}`)
+      }
+
+      if (isGlobalTariff) {
+        // Reload global tariffs after deletion from Supabase
+        await loadGlobalTariffs()
+        // Also reload modified tariffs in case the deleted one was in that list
         await reloadModifiedTariffs()
+        showAlert("Deleted", "Global tariff has been successfully deleted from the database.")
+      } else if (isModifiedGlobal) {
+        await reloadModifiedTariffs()
+        // Also reload global tariffs to refresh the view
+        await loadGlobalTariffs()
         showAlert("Deleted", "Modified global tariff has been successfully deleted.")
       } else {
         await reloadUserTariffs()
         showAlert("Deleted", "User-defined tariff has been successfully deleted.")
       }
-    } catch (e) {
-      showAlert("Error", "Failed to delete tariff. Please try again.")
+    } catch (e: any) {
+      showAlert("Error", e.message || "Failed to delete tariff. Please try again.")
     }
   }
 
+  const escapeCSV = (value: string | number | null | undefined): string => {
+    if (value === null || value === undefined) {
+      return ""
+    }
+    const str = String(value)
+    // Escape quotes and wrap in quotes if contains comma, quote, or newline
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`
+    }
+    return str
+  }
+
   const handleExportCSV = () => {
-    window.location.href = `${API_BASE_URL}/tariff-definitions/export`
+    // Get the tariffs that are currently displayed (merged and filtered)
+    const tariffsToExport = simulatorMode ? userTariffs : mergeTariffs()
+    const filteredTariffs = getFilteredTariffs(tariffsToExport)
+
+    if (filteredTariffs.length === 0) {
+      showAlert("No Data", "There are no tariff definitions to export.")
+      return
+    }
+
+    // Create CSV header
+    const headers = ["Product", "Exporting From", "Importing To", "Type", "Rate (%)", "Expiration Date"]
+    const csvRows = [headers.map(escapeCSV).join(",")]
+
+    // Add data rows
+    filteredTariffs.forEach((tariff) => {
+      const row = [
+        tariff.product,
+        tariff.exportingFrom,
+        tariff.importingTo,
+        tariff.type,
+        tariff.rate,
+        tariff.expirationDate,
+      ]
+      csvRows.push(row.map(escapeCSV).join(","))
+    })
+
+    // Create CSV content
+    const csvContent = csvRows.join("\n")
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `tariff_definitions_${new Date().toISOString().split("T")[0]}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    showAlert("Export Successful", `Exported ${filteredTariffs.length} tariff definition(s) to CSV.`)
   }
 
   const matchesProductFilter = (tariff: TariffDefinition): boolean => {
@@ -577,7 +701,6 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Importing To</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Type</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Rate</th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Effective Date</th>
                   <th className="text-left py-3 px-4 font-medium text-muted-foreground">Expiration Date</th>
                   {showActions && <th className="text-center py-3 px-4 font-medium text-muted-foreground">Actions</th>}
                 </tr>
@@ -597,9 +720,8 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-foreground">{tariff.rate}%</td>
-                    <td className="py-3 px-4 text-muted-foreground">{tariff.effectiveDate}</td>
                     <td className="py-3 px-4 text-muted-foreground">{tariff.expirationDate}</td>
-                    {showActions && (
+                    {showActions && isAdminRole() && (
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-center space-x-2">
                           <Button
@@ -607,16 +729,38 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
                             size="sm"
                             onClick={() => handleEditTariff(tariff)}
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            title="Edit tariff"
+                            title="Edit tariff (Admin only)"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteTariff(tariff.id, isModifiedGlobal)}
+                            onClick={() => {
+                              // Only admins can delete - double check
+                              if (!isAdminRole()) {
+                                showAlert("Access Denied", "Only administrators can delete tariffs.")
+                                return
+                              }
+                              
+                              // Determine if this is a user tariff based on ID prefix or if it's in userTariffs
+                              const isUserTariff = simulatorMode || 
+                                                   tariff.id.startsWith(USER_ID_PREFIX) ||
+                                                   userTariffs.some(t => t.id === tariff.id)
+                              // Check if this tariff is in the modified global tariffs list
+                              // Modified global tariffs have IDs in format "{country}_{partner}"
+                              const isModifiedGlobalTariff = modifiedGlobalTariffs.some(t => t.id === tariff.id)
+                              // Global tariffs have sequential numeric IDs - admins can delete these
+                              const isGlobalTariff = /^\d+$/.test(tariff.id) && !isModifiedGlobalTariff && !isUserTariff
+                              
+                              // Use the correct endpoint: 
+                              // - Global tariffs (numeric IDs) -> /global (admin only, sends tariff data)
+                              // - User tariffs -> /user
+                              // - Modified global tariffs -> /modified
+                              handleDeleteTariff(tariff.id, isModifiedGlobalTariff && !isUserTariff, tariff)
+                            }}
                             className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Delete tariff"
+                            title="Delete tariff (Admin only)"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -634,13 +778,25 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
   }
 
   const mergeTariffs = (): TariffDefinition[] => {
-    const mergedGlobalTariffs = [...globalTariffs]
+    // Deduplicate global tariffs by product + country pair + type
+    // This ensures we show one entry per product per country pair per type
+    const seen = new Map<string, TariffDefinition>()
+    globalTariffs.forEach((tariff) => {
+      // Create a unique key: product + country pair + type
+      const key = `${tariff.product}_${tariff.exportingFrom}_${tariff.importingTo}_${tariff.type}`
+      // Keep the first occurrence (all entries with same key should have same rate)
+      if (!seen.has(key)) {
+        seen.set(key, tariff)
+      }
+    })
+    
+    const mergedGlobalTariffs = Array.from(seen.values())
+    
+    // Then merge with modified tariffs (these override global ones)
     modifiedGlobalTariffs.forEach((modifiedTariff) => {
+      const key = `${modifiedTariff.product}_${modifiedTariff.exportingFrom}_${modifiedTariff.importingTo}_${modifiedTariff.type}`
       const existingIndex = mergedGlobalTariffs.findIndex(
-        (t) =>
-          t.product === modifiedTariff.product &&
-          t.exportingFrom === modifiedTariff.exportingFrom &&
-          t.importingTo === modifiedTariff.importingTo,
+        (t) => `${t.product}_${t.exportingFrom}_${t.importingTo}_${t.type}` === key
       )
       if (existingIndex !== -1) {
         mergedGlobalTariffs[existingIndex] = modifiedTariff
@@ -648,7 +804,13 @@ export function TariffDefinitionsTable({ userRole, simulatorMode = false }: Tari
         mergedGlobalTariffs.push(modifiedTariff)
       }
     })
-    return mergedGlobalTariffs
+    
+    // Sort by product, then by importing country, then by exporting country
+    return mergedGlobalTariffs.sort((a, b) => {
+      if (a.product !== b.product) return a.product.localeCompare(b.product)
+      if (a.importingTo !== b.importingTo) return a.importingTo.localeCompare(b.importingTo)
+      return a.exportingFrom.localeCompare(b.exportingFrom)
+    })
   }
 
   const getGlobalTariffsDescription = (): string => {

@@ -35,10 +35,12 @@ public class ExportCartServiceTest {
 
     private CalculationHistoryDto testCalculation;
     private String testCalculationId; // Assume calculation IDs are strings (adjust if UUID/Long)
+    private String testSessionId;
 
     @BeforeEach
     public void setUp() {
         testCalculationId = UUID.randomUUID().toString(); // Generate unique ID for tests
+        testSessionId = UUID.randomUUID().toString(); // Generate unique session ID for tests
         testCalculation = new CalculationHistoryDto(
             "Test Product",
             "Singapore",
@@ -57,7 +59,8 @@ public class ExportCartServiceTest {
     @Test
     public void addToCart_ValidCalculationId_AddsToCart() {
         // Arrange: Mock client to return valid calculation
-        when(sessionManagementClient.getCalculationById(eq(testCalculationId))).thenReturn(testCalculation);
+        when(session.getId()).thenReturn(testSessionId);
+        when(sessionManagementClient.getCalculationById(eq(testSessionId), eq(testCalculationId))).thenReturn(testCalculation);
         when(session.getAttribute("exportCart")).thenReturn(new ArrayList<CalculationHistoryDto>()); // Empty cart
 
         // Act
@@ -70,7 +73,7 @@ public class ExportCartServiceTest {
         assertEquals(testCalculation.getProductName(), updatedCart.get(0).getProductName(), "Added item does not match test calculation");
 
         // Verify mocks
-        verify(sessionManagementClient, times(1)).getCalculationById(testCalculationId);
+        verify(sessionManagementClient, times(1)).getCalculationById(testSessionId, testCalculationId);
         verify(session, times(2)).getAttribute("exportCart"); // Once to get, once to verify (implicit)
         verify(session, times(1)).setAttribute(eq("exportCart"), any(List.class));
     }
@@ -79,10 +82,11 @@ public class ExportCartServiceTest {
     @Test
     public void addToCart_DuplicateCalculationId_ThrowsBadRequest() {
         // Arrange: Cart already contains the test calculation
+        when(session.getId()).thenReturn(testSessionId);
         List<CalculationHistoryDto> existingCart = new ArrayList<>();
         existingCart.add(testCalculation);
         when(session.getAttribute("exportCart")).thenReturn(existingCart);
-        when(sessionManagementClient.getCalculationById(eq(testCalculationId))).thenReturn(testCalculation);
+        when(sessionManagementClient.getCalculationById(eq(testSessionId), eq(testCalculationId))).thenReturn(testCalculation);
 
         // Act + Assert: Duplicate throws exception
         BadRequestException exception = assertThrows(BadRequestException.class, () -> {
@@ -90,7 +94,7 @@ public class ExportCartServiceTest {
         });
 
         assertEquals("Calculation already exists in cart", exception.getMessage(), "Duplicate error message incorrect");
-        verify(sessionManagementClient, times(1)).getCalculationById(testCalculationId);
+        verify(sessionManagementClient, times(1)).getCalculationById(testSessionId, testCalculationId);
         verify(session, never()).setAttribute(any(), any()); // No new item added
     }
 
@@ -98,7 +102,8 @@ public class ExportCartServiceTest {
     @Test
     public void addToCart_NonExistentCalculationId_ThrowsNotFound() {
         // Arrange: Client returns null (calculation not found)
-        when(sessionManagementClient.getCalculationById(eq(testCalculationId))).thenReturn(null);
+        when(session.getId()).thenReturn(testSessionId);
+        when(sessionManagementClient.getCalculationById(eq(testSessionId), eq(testCalculationId))).thenReturn(null);
         when(session.getAttribute("exportCart")).thenReturn(new ArrayList<>());
 
         // Act + Assert
@@ -107,7 +112,7 @@ public class ExportCartServiceTest {
         });
 
         assertEquals("Calculation not found with ID: " + testCalculationId, exception.getMessage(), "NotFound error message incorrect");
-        verify(sessionManagementClient, times(1)).getCalculationById(testCalculationId);
+        verify(sessionManagementClient, times(1)).getCalculationById(testSessionId, testCalculationId);
         verify(session, never()).setAttribute(any(), any()); // No item added
     }
 
@@ -118,7 +123,6 @@ public class ExportCartServiceTest {
         List<CalculationHistoryDto> existingCart = new ArrayList<>();
         existingCart.add(testCalculation);
         when(session.getAttribute("exportCart")).thenReturn(existingCart);
-        when(sessionManagementClient.getCalculationById(eq(testCalculationId))).thenReturn(testCalculation);
 
         // Act
         exportCartService.removeFromCart(testCalculationId, session);
@@ -126,7 +130,6 @@ public class ExportCartServiceTest {
         // Assert: Cart is now empty
         List<CalculationHistoryDto> updatedCart = (List<CalculationHistoryDto>) session.getAttribute("exportCart");
         assertTrue(updatedCart.isEmpty(), "Cart should be empty after removal");
-        verify(sessionManagementClient, times(1)).getCalculationById(testCalculationId);
         verify(session, times(1)).setAttribute(eq("exportCart"), eq(updatedCart));
     }
 
@@ -136,7 +139,6 @@ public class ExportCartServiceTest {
         // Arrange: Cart does NOT contain the calculation
         List<CalculationHistoryDto> existingCart = new ArrayList<>();
         when(session.getAttribute("exportCart")).thenReturn(existingCart);
-        when(sessionManagementClient.getCalculationById(eq(testCalculationId))).thenReturn(testCalculation);
 
         // Act + Assert
         NotFoundException exception = assertThrows(NotFoundException.class, () -> {
@@ -144,7 +146,6 @@ public class ExportCartServiceTest {
         });
 
         assertEquals("Calculation not found in cart", exception.getMessage(), "Removal NotFound error message incorrect");
-        verify(sessionManagementClient, times(1)).getCalculationById(testCalculationId);
         verify(session, never()).setAttribute(any(), any()); // Cart unchanged
     }
 

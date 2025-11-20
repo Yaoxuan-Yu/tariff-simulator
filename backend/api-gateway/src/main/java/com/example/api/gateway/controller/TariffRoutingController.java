@@ -4,6 +4,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMethod;
 
 import com.example.api.gateway.service.RoutingService;
 
@@ -281,6 +282,21 @@ public class TariffRoutingController {
         String targetUrl = routingService.buildTargetUrl(
             routingService.getGlobalTariffsUrl(), 
             "/api/tariff-definitions/modified/" + id, 
+            queryString
+        );
+        return routingService.forwardRequest(targetUrl, HttpMethod.DELETE, entity, Object.class);
+    }
+
+    // DELETE /api/tariff-definitions/global -> delete global tariff definition from database
+    @DeleteMapping("/tariff-definitions/global")
+    public ResponseEntity<?> deleteGlobalTariffDefinition(
+            @RequestBody(required = false) Map<String, Object> body,
+            HttpServletRequest request) {
+        String queryString = request.getQueryString();
+        HttpEntity<?> entity = routingService.createHttpEntity(request, body);
+        String targetUrl = routingService.buildTargetUrl(
+            routingService.getGlobalTariffsUrl(), 
+            "/api/tariff-definitions/global", 
             queryString
         );
         return routingService.forwardRequest(targetUrl, HttpMethod.DELETE, entity, Object.class);

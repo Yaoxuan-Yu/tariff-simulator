@@ -23,7 +23,7 @@ public class SessionManagementClient {
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SessionManagementClient.class);
     
     // fetch calculation details by id (service-to-service call)
-    public CalculationHistoryDto getCalculationById(String sessionId) {
+    public CalculationHistoryDto getCalculationById(String sessionId, String calculationId) {
         try {
             // pass session ID as query param (works across services)
             String url = sessionManagementUrl + "/api/tariff/history/" + calculationId + "?sessionId=" + sessionId;
